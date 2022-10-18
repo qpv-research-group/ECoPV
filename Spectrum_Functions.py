@@ -5,28 +5,72 @@ import pandas as pd
 interval=0.02 # used for setting correct number of data points
 wl=np.arange(380,780+interval,interval) # visible wavelength in nm, 380nm to 780nm, 1nm intervals
 
+cmf = np.loadtxt('cmf.txt', usecols=(1, 2, 3))
+cmf_new = np.zeros((len(wl), 3))  # Interpolating cmf data to be in 1nm intervals
+
+intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 0], fill_value="extrapolate")
+cmf_new[:, 0] = intfunc(wl)
+intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 1], fill_value="extrapolate")
+cmf_new[:, 1] = intfunc(wl)
+intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 2], fill_value="extrapolate")
+cmf_new[:, 2] = intfunc(wl)
+cmf = cmf_new
+
+"""Convert a spectrum to an xyz point.
+The spectrum must be on the same grid of points as the colour-matching
+function, self.cmf: 380-780 nm in 1 nm steps.
+"""
+# Trying to get Python cooridnates to match Matlab
+# Insert complete path to the excel file and index of the worksheet
+
+
+
 # spectrum generation (1 dip parameters to spectrum)
-def gen_spectrum_1dip(center,width,peak,base=0): # center and width in nm
-    spectrum=np.array(np.zeros(len(wl)))
-    wl1=center-width/2
-    wl2=center+width/2
+def gen_spectrum_1dip_old(center,width,peak,base=0): # center and width in nm
+
+    spectrum = np.array(np.zeros(len(wl)))
+    wl1 = center-width/2
+    wl2 = center+width/2
     for idx in np.arange(0, len(wl), 1):
         if (idx>=(wl1-380)/interval) and (idx<=(wl2-380)/interval):
-            spectrum[idx]=peak
+            spectrum[idx] = peak
         else:
-            spectrum[idx]=base
+            spectrum[idx] = base
+    return spectrum
+
+
+def gen_spectrum_1dip(center,width,peak,base=0): # center and width in nm
+
+    spectrum = np.ones_like(wl)*base
+    wl1 = center-width/2
+    wl2 = center+width/2
+
+    spectrum[np.all((wl >= wl1, wl <= wl2), axis=0)] = peak
+
     return spectrum
 
 # spectrum generation (1 gaussian parameters to spectrum)
-def gen_spectrum_1gauss(center,width,peak,base=0): # center and width in nm
-    spectrum=np.array(np.zeros(len(wl)))
-    k=peak-base
+def gen_spectrum_1gauss_old(center,width,peak,base=0): # center and width in nm
+
+    spectrum = np.array(np.zeros(len(wl)))
+    k = peak-base
     for idx in np.arange(0, len(wl), 1):
-        spectrum[idx]=base+k*np.exp(-((wl[idx]-center)/width)**2)
+        spectrum[idx] = base+k*np.exp(-((wl[idx]-center)/width)**2)
     return spectrum
 
+def gen_spectrum_1gauss(center,width,peak,base=0): # center and width in nm
+
+    k = peak-base
+
+    spectrum = base + k*np.exp(-((wl-center)/width)**2)
+
+    return spectrum
+
+
 # spectrum generation (2 dip parameters to spectrum)
-def gen_spectrum_2dip(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+
+def gen_spectrum_2dip_old(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+
     spectrum=np.array(np.zeros(len(wl)))
     dip1_wl1=center1-width1/2
     dip1_wl2=center1+width1/2
@@ -39,42 +83,90 @@ def gen_spectrum_2dip(center1,width1,center2,width2,peak=1,base=0): # center and
             spectrum[idx]=base
     return spectrum
 
+def gen_spectrum_2dip(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+
+    spectrum = np.ones_like(wl)*base
+
+    dip1_wl1=center1-width1/2
+    dip1_wl2=center1+width1/2
+    dip2_wl1=center2-width2/2
+    dip2_wl2=center2+width2/2
+
+    spectrum[np.all((wl >= dip1_wl1, wl <= dip1_wl2), axis=0)] = peak
+    spectrum[np.all((wl >= dip2_wl1, wl <= dip2_wl2), axis=0)] = peak
+
+    return spectrum
+
 # spectrum generation (2 gaussian parameters to spectrum)
-def gen_spectrum_2gauss(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+def gen_spectrum_2gauss_old(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
     spectrum=np.array(np.zeros(len(wl)))
     k=peak-base
     for idx in np.arange(0, len(wl), 1):
         spectrum[idx]=base+k*np.exp(-((wl[idx]-center1)/width1)**2)+k*np.exp(-((wl[idx]-center2)/width2)**2)
-    spectrum=spectrum/spectrum.max()
+    spectrum=spectrum/spectrum.max() # this doesn't make sense, you're normalizing so the peak will always be 1
+    return spectrum
+
+def gen_spectrum_2gauss(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+
+    spectrum = np.exp(-((wl-center1)/width1)**2)+np.exp(-((wl-center2)/width2)**2)
+
+    spectrum = (peak-base)*spectrum/max(spectrum) + base
+
     return spectrum
 
 #Ref https://scipython.com/blog/converting-a-spectrum-to-a-colour/
-def spec_to_xyz(spec):
-    cmf = np.loadtxt('cmf.txt', usecols=(1,2,3))        
-    cmf_new=np.zeros((len(wl),3)) # Interpolating cmf data to be in 1nm intervals
-           
-    intfunc = interp1d(np.arange(380,781,1),cmf[:,0],fill_value="extrapolate")
-    cmf_new[:,0] = intfunc(wl)
-    intfunc = interp1d(np.arange(380,781,1),cmf[:,1],fill_value="extrapolate")
-    cmf_new[:,1] = intfunc(wl)
-    intfunc = interp1d(np.arange(380,781,1),cmf[:,2],fill_value="extrapolate")
-    cmf_new[:,2] = intfunc(wl)
-    cmf=cmf_new
-    
+def spec_to_xyz(spec, df):
+    # insert the name of the column as a string in brackets
+    AM1_5G_wl = list(df['A'])
+    AM1_5G_Spec = list(df['C'])
+
+    intfunc = interp1d(AM1_5G_wl, AM1_5G_Spec, fill_value="extrapolate")
+    AM1_5G = intfunc(wl)
+    AM1_5G = np.array(AM1_5G)
+
+    Ymax = np.sum(interval * cmf[:,1] * AM1_5G)
+    X = np.sum(interval * cmf[:,0] * AM1_5G * spec)
+    Y = np.sum(interval * cmf[:,1] * AM1_5G * spec)
+    Z = np.sum(interval * cmf[:,2] * AM1_5G * spec)
+
+    if Ymax == 0:
+        return (X,Y,Z)
+
+    else:
+        X = X/Ymax
+        Y = Y/Ymax
+        Z = Z/Ymax
+        XYZ = (X,Y,Z)
+
+        return XYZ
+
+
+def spec_to_xyz_old(spec):
+    cmf = np.loadtxt('cmf.txt', usecols=(1, 2, 3))
+    cmf_new = np.zeros((len(wl), 3))  # Interpolating cmf data to be in 1nm intervals
+
+    intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 0], fill_value="extrapolate")
+    cmf_new[:, 0] = intfunc(wl)
+    intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 1], fill_value="extrapolate")
+    cmf_new[:, 1] = intfunc(wl)
+    intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 2], fill_value="extrapolate")
+    cmf_new[:, 2] = intfunc(wl)
+    cmf = cmf_new
+
     """Convert a spectrum to an xyz point.
     The spectrum must be on the same grid of points as the colour-matching
     function, self.cmf: 380-780 nm in 1 nm steps.
     """
-    #Trying to get Python cooridnates to match Matlab
-    #Insert complete path to the excel file and index of the worksheet
+    # Trying to get Python cooridnates to match Matlab
+    # Insert complete path to the excel file and index of the worksheet
     df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
     # insert the name of the column as a string in brackets
-    AM1_5G_wl  = list(df['A']) 
+    AM1_5G_wl = list(df['A'])
     AM1_5G_Spec = list(df['C'])
 
-    intfunc = interp1d(AM1_5G_wl,AM1_5G_Spec,fill_value="extrapolate")
+    intfunc = interp1d(AM1_5G_wl, AM1_5G_Spec, fill_value="extrapolate")
     AM1_5G = intfunc(wl)
-    AM1_5G= np.array(AM1_5G)
+    AM1_5G = np.array(AM1_5G)
 
     X = 0
     Y = 0
@@ -82,18 +174,18 @@ def spec_to_xyz(spec):
     Ymax = 0
 
     for i in range(0, len(wl)):
-        Ymax = Ymax + interval * cmf[i,1] * AM1_5G[i]
-        X = X + interval * cmf[i,0] * AM1_5G[i] * spec[i]
-        Y = Y + interval * cmf[i,1] * AM1_5G[i] * spec[i]
-        Z = Z + interval * cmf[i,2] * AM1_5G[i] * spec[i]
-    
-    if Ymax == 0:
-        return (X,Y,Z)
+        Ymax = Ymax + interval * cmf[i, 1] * AM1_5G[i]
+        X = X + interval * cmf[i, 0] * AM1_5G[i] * spec[i]
+        Y = Y + interval * cmf[i, 1] * AM1_5G[i] * spec[i]
+        Z = Z + interval * cmf[i, 2] * AM1_5G[i] * spec[i]
 
-    X = X/Ymax
-    Y = Y/Ymax
-    Z = Z/Ymax
-    XYZ = (X,Y,Z)
+    if Ymax == 0:
+        return (X, Y, Z)
+
+    X = X / Ymax
+    Y = Y / Ymax
+    Z = Z / Ymax
+    XYZ = (X, Y, Z)
 
     return XYZ
 

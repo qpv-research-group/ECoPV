@@ -77,8 +77,11 @@ for i in range(len(color_lab)):
 total_list = []
 wcde = {}
 
-print('TIME:', time()-start)
 #%%
+
+
+
+print(time()-start)
 
 '''
 color_d[0]#which color name set tu_cp[0] 0: dp1, 1: dp2, 2: g1, 3: g2
@@ -102,7 +105,7 @@ efficiency = {}
 # {'dict1': {'innerkey': 'value', 'innerkey2': 'value2'}
   
 
-for c in  range(len(color_lab)): #for each color
+for c in range(len(color_lab)): #for each color
     efficiency[color_names[c]] = []
     print('color name is ',color_names[c])
     efficiency[color_names[c]].append(color_lab[c]) # target color
@@ -205,5 +208,4 @@ for c in  range(len(color_lab)): #for each color
 #                  ' and color generated ',max_value[i_mv[0]][2],'compared to target color ',efficiency[color][0])
 #        #print(i_mv)
 #        #print(max_value[i_mv[0]])
-
 
