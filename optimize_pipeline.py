@@ -14,6 +14,7 @@ import openpyxl
 import os
 import matplotlib.pyplot as plt
 from sys import getsizeof
+from solcore.optimization import DE, PDE
 
 from colormath.color_objects import LabColor, XYZColor,  sRGBColor
 from colormath.color_conversions import convert_color
@@ -22,6 +23,8 @@ import random
 
 interval=0.02 # interval between each two wavelength points, 0.02 needed for low dE values
 wl=np.arange(380,780+interval,interval)
+
+df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
 
 class Optimize:
     def __init__(self, colors_tuple, color_name):
@@ -91,31 +94,129 @@ class Optimize:
         # self.result2d_Minimize = brute(self.op_delta_E_2dip, ranges=self.ranges2d)
         # self.result2gauss_Minimize = brute(self.op_delta_E_2gauss, ranges=self.ranges2d)
 
-        df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
 
         print("Optimization for 1 top hat dip")
-        self.result1d_Minimize = minimize(self.op_delta_E_1dip,self.x0,method= method2,
-                                          bounds=self.ranges,tol = tolerance,
-                                          args=df)#,options={'return_all': True,'fatol': 0.1,'adaptive': True})#'initial_tr_radius': 0.5})
+        # self.result1d_Minimize = minimize(self.op_delta_E_1dip,self.x0,method= method2,
+        #                                   bounds=self.ranges,tol = tolerance,
+        #                                   args=df)#,options={'return_all': True,'fatol': 0.1,'adaptive': True})#'initial_tr_radius': 0.5})
+
+        PDE_obj_1dip = DE(self.op_delta_E_1dip,
+                                     bounds=self.ranges, maxiters=200)
+
+        self.result1d_Minimize = PDE_obj_1dip.solve()
+        res = self.result1d_Minimize
+        best_pop = res[0]
+
+        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+
+        best_pop_evo = res[2]
+        best_fitn_evo = res[3]
+        mean_fitn_evo = res[4]
+        final_fitness = res[1]
+
+        # plot evolution of the fitness of the best population per iteration
+
+        plt.figure()
+        plt.plot(best_fitn_evo, '-k', label='Best')
+        plt.plot(mean_fitn_evo, '--r', label='Mean')
+        plt.xlabel('iteration')
+        plt.ylabel('delta_E')
+        plt.title('1 dip')
+        plt.show()
+
         print("Optimization for 1 Gaussian dip")
-        self.result1gauss_Minimize = minimize(self.op_delta_E_1gauss,self.x0,method=method2,
-                                              bounds=self.ranges,tol = tolerance,
-                                              args=df)
+        # self.result1gauss_Minimize = minimize(self.op_delta_E_1gauss,self.x0,method=method2,
+        #                                       bounds=self.ranges,tol = tolerance,
+        #                                       args=df)
+
+        PDE_obj_1gauss = DE(self.op_delta_E_1gauss,
+                          bounds=self.ranges, maxiters=200)
+
+        self.result1gauss_Minimize = PDE_obj_1gauss.solve()
+        res = self.result1gauss_Minimize
+        best_pop = res[0]
+
+        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+
+        best_pop_evo = res[2]
+        best_fitn_evo = res[3]
+        mean_fitn_evo = res[4]
+        final_fitness = res[1]
+
+        # plot evolution of the fitness of the best population per iteration
+
+        plt.figure()
+        plt.plot(best_fitn_evo, '-k', label='Best')
+        plt.plot(mean_fitn_evo, '--r', label='Mean')
+        plt.xlabel('iteration')
+        plt.ylabel('delta_E')
+        plt.title('1 gaussian')
+        plt.show()
+
         print("Optimization for 2 top hat dips")
-        self.result2d_Minimize = minimize(self.op_delta_E_2dip,self.x02d,method=method2,
-                                          bounds=self.ranges2d,tol = tolerance,
-                                          args=df)
+        # self.result2d_Minimize = minimize(self.op_delta_E_2dip,self.x02d,method=method2,
+        #                                   bounds=self.ranges2d,tol = tolerance,
+        #                                   args=df)
+
+        PDE_obj_2dip = DE(self.op_delta_E_2dip,
+                                     bounds=self.ranges2d, maxiters=200)
+
+        self.result2d_Minimize = PDE_obj_2dip.solve()
+        res = self.result2d_Minimize
+        best_pop = res[0]
+
+        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+
+        best_pop_evo = res[2]
+        best_fitn_evo = res[3]
+        mean_fitn_evo = res[4]
+        final_fitness = res[1]
+
+        # plot evolution of the fitness of the best population per iteration
+
+        plt.figure()
+        plt.plot(best_fitn_evo, '-k', label='Best')
+        plt.plot(mean_fitn_evo, '--r', label='Mean')
+        plt.xlabel('iteration')
+        plt.ylabel('delta_E')
+        plt.title('2 dip')
+        plt.show()
+
         print("Optimization for 2 Gaussian dips")
-        self.result2gauss_Minimize = minimize(self.op_delta_E_2gauss,self.x02d,method=method2,
-                                              bounds=self.ranges2d,tol = tolerance,
-                                              args=df)
+        # self.result2gauss_Minimize = minimize(self.op_delta_E_2gauss,self.x02d,method=method2,
+        #                                       bounds=self.ranges2d,tol = tolerance,
+        #                                       args=df)
+
+        PDE_obj_2gauss = DE(self.op_delta_E_2gauss,
+                            bounds=self.ranges2d, maxiters=200)
+
+        self.result2gauss_Minimize = PDE_obj_2gauss.solve()
+        res = self.result2gauss_Minimize
+        best_pop = res[0]
+
+        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+
+        best_pop_evo = res[2]
+        best_fitn_evo = res[3]
+        mean_fitn_evo = res[4]
+        final_fitness = res[1]
+
+        # plot evolution of the fitness of the best population per iteration
+
+        plt.figure()
+        plt.plot(best_fitn_evo, '-k', label='Best')
+        plt.plot(mean_fitn_evo, '--r', label='Mean')
+        plt.xlabel('iteration')
+        plt.ylabel('delta_E')
+        plt.title('2 gaussian')
+        plt.show()
 
         self.tu_cp = (self.d1_cp, self.d2_cp, self.g1_cp, self.g2_cp) #tuple of color parameter dictionaries to easily access all of these values at once
         #DEFINE WCDE DICT
         
         return
     
-    def op_delta_E_1dip(self,x, df):
+    def op_delta_E_1dip(self,x, df=df):
     
         center = x[0]
         width = x[1]
@@ -126,10 +227,10 @@ class Optimize:
         XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
         Lab=convert_color(XYZ, LabColor)
         delta_E=delta_E_CIE2000((Lab.lab_l,Lab.lab_a,Lab.lab_b),self.target_color_LAB)
-        print('delta_E 1dip is ',delta_E)
+        #print('delta_E 1dip is ',delta_E)
         if delta_E < self.dE_threshold1d:
             for i in range(2): # Trying to avoid excel writing error
-                print('Delta E Below Threshold')
+                #print('Delta E Below Threshold')
                 #WRITE EXCEL FUNCTION
                 xcel_file = self.color_2005+'_D1_'+'dE_'+str(delta_E).replace('.','_')#color_name
                 cwd = os.getcwd()
@@ -165,7 +266,7 @@ class Optimize:
                 workbook.close()   
         return delta_E
     
-    def op_delta_E_1gauss(self,x, df):
+    def op_delta_E_1gauss(self,x, df=df):
         center = x[0]
         width = x[1]
         peak = x[2]
@@ -177,7 +278,7 @@ class Optimize:
         #print('delta_E 1gauss is ',delta_E)
         if delta_E < self.dE_threshold1d:
             for i in range(2):
-                print('Delta E Below Threshold')
+                #print('Delta E Below Threshold')
                 xcel_file = self.color_2005+'_G1_'+'dE_'+str(delta_E).replace('.','_')#color_name
                 cwd = os.getcwd()
                 filepath=os.path.join(cwd, r"color_data",xcel_file+'.xlsx')
@@ -212,7 +313,7 @@ class Optimize:
         return delta_E
     
     
-    def op_delta_E_2dip(self,x, df):
+    def op_delta_E_2dip(self,x, df=df):
         center = x[0]
         width = x[1]
         center2 = x[2]
@@ -229,7 +330,7 @@ class Optimize:
                 cwd = os.getcwd()
                 filepath=os.path.join(cwd, r"color_data",xcel_file+'.xlsx')
                 
-                print('Delta E Below Threshold')
+                #print('Delta E Below Threshold')
                 cp_list = ([center, width, center2, width2,spectrum,Lab,filepath])
                 self.d2_cp[delta_E] = cp_list
                 
@@ -265,7 +366,7 @@ class Optimize:
         return delta_E
 
     
-    def op_delta_E_2gauss(self,x, df):
+    def op_delta_E_2gauss(self,x, df=df):
         center = x[0]
         width = x[1]
         center2 = x[2]
@@ -282,7 +383,7 @@ class Optimize:
                 cwd = os.getcwd()
                 filepath=os.path.join(cwd, r"color_data",xcel_file+'.xlsx')
                 
-                print('Delta E Below Threshold')
+                #print('Delta E Below Threshold')
                 cp_list = ([center, width, center2, width2,spectrum,Lab,filepath])
                 self.g2_cp[delta_E] = cp_list
                 

@@ -16,6 +16,8 @@ intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 2], fill_value="extrapolate")
 cmf_new[:, 2] = intfunc(wl)
 cmf = cmf_new
 
+df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
+
 """Convert a spectrum to an xyz point.
 The spectrum must be on the same grid of points as the colour-matching
 function, self.cmf: 380-780 nm in 1 nm steps.
@@ -115,7 +117,7 @@ def gen_spectrum_2gauss(center1,width1,center2,width2,peak=1,base=0): # center a
     return spectrum
 
 #Ref https://scipython.com/blog/converting-a-spectrum-to-a-colour/
-def spec_to_xyz(spec, df):
+def spec_to_xyz(spec, df=df):
     # insert the name of the column as a string in brackets
     AM1_5G_wl = list(df['A'])
     AM1_5G_Spec = list(df['C'])
