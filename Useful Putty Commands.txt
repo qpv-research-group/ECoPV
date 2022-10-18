@@ -1,0 +1,27 @@
+module load miniconda
+
+didnt work:
+conda create -n op_send_ENV python pip ipython tensorflow-gpu pandas colormath
+source activate op_send_ENV
+
+works:
+conda info --envs
+conda create -n ENV_NAME
+conda activate ENV_NAME
+
+install dependencies:
+conda list
+conda install python
+conda install -c conda-forge colormath
+conda install matplotlib scipy pandas xlsxwriter openpyxl
+conda env export > env_name.yml
+
+run script in background:
+srun --mem=25000M --time=24:00:00 op_send_sq.py &
+disown
+
+zip folder:
+zip -r data.zip data/
+
+delete folder:
+rm -rf foldername/
