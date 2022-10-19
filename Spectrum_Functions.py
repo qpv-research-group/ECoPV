@@ -85,7 +85,7 @@ def gen_spectrum_2dip_old(center1,width1,center2,width2,peak=1,base=0): # center
             spectrum[idx]=base
     return spectrum
 
-def gen_spectrum_2dip(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+def gen_spectrum_2dip(center1,width1,peak1=1,center2=600,width2=100,peak2=1,base=0): # center and width in nm
 
     spectrum = np.ones_like(wl)*base
 
@@ -94,8 +94,8 @@ def gen_spectrum_2dip(center1,width1,center2,width2,peak=1,base=0): # center and
     dip2_wl1=center2-width2/2
     dip2_wl2=center2+width2/2
 
-    spectrum[np.all((wl >= dip1_wl1, wl <= dip1_wl2), axis=0)] = peak
-    spectrum[np.all((wl >= dip2_wl1, wl <= dip2_wl2), axis=0)] = peak
+    spectrum[np.all((wl >= dip1_wl1, wl <= dip1_wl2), axis=0)] = peak1
+    spectrum[np.all((wl >= dip2_wl1, wl <= dip2_wl2), axis=0)] = peak2
 
     return spectrum
 
@@ -108,11 +108,12 @@ def gen_spectrum_2gauss_old(center1,width1,center2,width2,peak=1,base=0): # cent
     spectrum=spectrum/spectrum.max() # this doesn't make sense, you're normalizing so the peak will always be 1
     return spectrum
 
-def gen_spectrum_2gauss(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
+def gen_spectrum_2gauss(center1,width1,peak1=1,center2=600,width2=100,peak2=1,base=0): # center and width in nm
 
-    spectrum = np.exp(-((wl-center1)/width1)**2)+np.exp(-((wl-center2)/width2)**2)
+    spectrum = peak1*np.exp(-((wl-center1)/width1)**2)+peak2*np.exp(-((wl-center2)/width2)**2)
 
-    spectrum = (peak-base)*spectrum/max(spectrum) + base
+    peak_max = max([peak1, peak2])
+    spectrum = (peak_max-base)*spectrum/max(spectrum) + base
 
     return spectrum
 

@@ -20,6 +20,7 @@ from colormath.color_objects import LabColor, XYZColor,  sRGBColor
 from colormath.color_conversions import convert_color
 import pandas as pd
 import random
+from skimage import io
 
 interval=0.02 # interval between each two wavelength points, 0.02 needed for low dE values
 wl=np.arange(380,780+interval,interval)
@@ -62,19 +63,19 @@ class Optimize:
         
         self.color_2005 = color_name #name from ColorChecker 2005
         # define ranges for optimize
-        self.vis_bound = (380,780)
-        self.width_max = (0.02,400)
-        self.width2_max = (0.02,400)
-        self.peak_range = (0,1)
+        self.vis_bound = [380,780]
+        self.width_max = [0.0,300]
+        self.width2_max = [0.0,300]
+        self.peak_range = [0,1]
         
         self.ranges=[self.vis_bound,self.width_max,self.peak_range]
-        self.ranges2d = [self.vis_bound,self.width2_max,self.vis_bound,self.width2_max]
+        self.ranges2d = [self.vis_bound,self.width2_max,self.peak_range,self.vis_bound,self.width2_max, self.peak_range]
         
         # self.x0 = [random.uniform(380,780),random.uniform(0,400), random.uniform(0,1)]
         # self.x02d = [random.uniform(380,780),random.uniform(0,200),random.uniform(380,780),random.uniform(0,200)]
 
-        self.x0 = [520, 100, 0.5]
-        self.x02d = [400, 100, 700, 100]
+        # self.x0 = [520, 100, 0.5]
+        # self.x02d = [400, 100, 700, 100]
 
         self.d1_cp  = {} #  spectrum, width, center, peak color parameters to be used for each delta E to calculate color spectrum
         self.d2_cp  = {}
@@ -86,8 +87,8 @@ class Optimize:
         method1 = 'trust-constr'
         method2 = 'Nelder-Mead'
 
-        print('Initial', self.x0, self.x02d)
-        tolerance = 1e-9 #100 1e-9 #0.001
+        # print('Initial', self.x0, self.x02d)
+        # tolerance = 1e-9 #100 1e-9 #0.001
         
         # self.result1d_Minimize = brute(self.op_delta_E_1dip, ranges=self.ranges)
         # self.result1gauss_Minimize = brute(self.op_delta_E_1gauss, ranges=self.ranges)
@@ -100,14 +101,14 @@ class Optimize:
         #                                   bounds=self.ranges,tol = tolerance,
         #                                   args=df)#,options={'return_all': True,'fatol': 0.1,'adaptive': True})#'initial_tr_radius': 0.5})
 
-        PDE_obj_1dip = DE(self.op_delta_E_1dip,
-                                     bounds=self.ranges, maxiters=200)
+        PDE_obj_1dip = PDE(self.op_delta_E_1dip, mutation=(0.5, 2),
+                                     bounds=self.ranges, maxiters=75)
 
         self.result1d_Minimize = PDE_obj_1dip.solve()
         res = self.result1d_Minimize
-        best_pop = res[0]
+        best_pop_1d = res[0]
 
-        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+        print('parameters for best result:', best_pop_1d, '\n', 'optimized value:', res[1])
 
         best_pop_evo = res[2]
         best_fitn_evo = res[3]
@@ -116,27 +117,27 @@ class Optimize:
 
         # plot evolution of the fitness of the best population per iteration
 
-        plt.figure()
-        plt.plot(best_fitn_evo, '-k', label='Best')
-        plt.plot(mean_fitn_evo, '--r', label='Mean')
-        plt.xlabel('iteration')
-        plt.ylabel('delta_E')
-        plt.title('1 dip')
-        plt.show()
+        # plt.figure()
+        # plt.plot(best_fitn_evo, '-k', label='Best')
+        # plt.plot(mean_fitn_evo, '--r', label='Mean')
+        # plt.xlabel('iteration')
+        # plt.ylabel('delta_E')
+        # plt.title('1 dip')
+        # plt.show()
 
         print("Optimization for 1 Gaussian dip")
         # self.result1gauss_Minimize = minimize(self.op_delta_E_1gauss,self.x0,method=method2,
         #                                       bounds=self.ranges,tol = tolerance,
         #                                       args=df)
 
-        PDE_obj_1gauss = DE(self.op_delta_E_1gauss,
-                          bounds=self.ranges, maxiters=200)
+        PDE_obj_1gauss = DE(self.op_delta_E_1gauss, mutation=(0.5, 2),
+                          bounds=self.ranges, maxiters=75)
 
         self.result1gauss_Minimize = PDE_obj_1gauss.solve()
         res = self.result1gauss_Minimize
-        best_pop = res[0]
+        best_pop_1g = res[0]
 
-        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+        print('parameters for best result:', best_pop_1g, '\n', 'optimized value:', res[1])
 
         best_pop_evo = res[2]
         best_fitn_evo = res[3]
@@ -145,27 +146,27 @@ class Optimize:
 
         # plot evolution of the fitness of the best population per iteration
 
-        plt.figure()
-        plt.plot(best_fitn_evo, '-k', label='Best')
-        plt.plot(mean_fitn_evo, '--r', label='Mean')
-        plt.xlabel('iteration')
-        plt.ylabel('delta_E')
-        plt.title('1 gaussian')
-        plt.show()
+        # plt.figure()
+        # plt.plot(best_fitn_evo, '-k', label='Best')
+        # plt.plot(mean_fitn_evo, '--r', label='Mean')
+        # plt.xlabel('iteration')
+        # plt.ylabel('delta_E')
+        # plt.title('1 gaussian')
+        # plt.show()
 
         print("Optimization for 2 top hat dips")
         # self.result2d_Minimize = minimize(self.op_delta_E_2dip,self.x02d,method=method2,
         #                                   bounds=self.ranges2d,tol = tolerance,
         #                                   args=df)
 
-        PDE_obj_2dip = DE(self.op_delta_E_2dip,
-                                     bounds=self.ranges2d, maxiters=200)
+        PDE_obj_2dip = DE(self.op_delta_E_2dip, mutation=(0.5, 2),
+                                     bounds=self.ranges2d, maxiters=300)
 
         self.result2d_Minimize = PDE_obj_2dip.solve()
         res = self.result2d_Minimize
-        best_pop = res[0]
+        best_pop_2d = res[0]
 
-        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+        print('parameters for best result:', best_pop_2d, '\n', 'optimized value:', res[1])
 
         best_pop_evo = res[2]
         best_fitn_evo = res[3]
@@ -174,27 +175,27 @@ class Optimize:
 
         # plot evolution of the fitness of the best population per iteration
 
-        plt.figure()
-        plt.plot(best_fitn_evo, '-k', label='Best')
-        plt.plot(mean_fitn_evo, '--r', label='Mean')
-        plt.xlabel('iteration')
-        plt.ylabel('delta_E')
-        plt.title('2 dip')
-        plt.show()
+        # plt.figure()
+        # plt.plot(best_fitn_evo, '-k', label='Best')
+        # plt.plot(mean_fitn_evo, '--r', label='Mean')
+        # plt.xlabel('iteration')
+        # plt.ylabel('delta_E')
+        # plt.title('2 dip')
+        # plt.show()
 
         print("Optimization for 2 Gaussian dips")
         # self.result2gauss_Minimize = minimize(self.op_delta_E_2gauss,self.x02d,method=method2,
         #                                       bounds=self.ranges2d,tol = tolerance,
         #                                       args=df)
 
-        PDE_obj_2gauss = DE(self.op_delta_E_2gauss,
-                            bounds=self.ranges2d, maxiters=200)
+        PDE_obj_2gauss = DE(self.op_delta_E_2gauss, mutation=(0.5, 2),
+                            bounds=self.ranges2d, maxiters=300)
 
         self.result2gauss_Minimize = PDE_obj_2gauss.solve()
         res = self.result2gauss_Minimize
-        best_pop = res[0]
+        best_pop_2g = res[0]
 
-        print('parameters for best result:', best_pop, '\n', 'optimized value:', res[1])
+        print('parameters for best result:', best_pop_2g, '\n', 'optimized value:', res[1])
 
         best_pop_evo = res[2]
         best_fitn_evo = res[3]
@@ -203,12 +204,52 @@ class Optimize:
 
         # plot evolution of the fitness of the best population per iteration
 
+        # plt.figure()
+        # plt.plot(best_fitn_evo, '-k', label='Best')
+        # plt.plot(mean_fitn_evo, '--r', label='Mean')
+        # plt.xlabel('iteration')
+        # plt.ylabel('delta_E')
+        # plt.title('2 gaussian')
+        # plt.show()
+
         plt.figure()
-        plt.plot(best_fitn_evo, '-k', label='Best')
-        plt.plot(mean_fitn_evo, '--r', label='Mean')
-        plt.xlabel('iteration')
-        plt.ylabel('delta_E')
-        plt.title('2 gaussian')
+        plt.plot(wl, gen_spectrum_1dip(*best_pop_1d))
+        plt.plot(wl, gen_spectrum_1gauss(*best_pop_1g))
+        plt.plot(wl, gen_spectrum_2dip(*best_pop_2d))
+        plt.plot(wl, gen_spectrum_2gauss(*best_pop_2g))
+        plt.title(color_name)
+        plt.show()
+
+        rgb_target = convert_color(self.xyz, sRGBColor)
+        rgb_target_list = [rgb_target.rgb_r*255, rgb_target.rgb_g*255, rgb_target.rgb_b*255]
+
+        XYZ=spec_to_xyz(gen_spectrum_1dip(*best_pop_1d), df)
+        XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
+        rgb_d1 = convert_color(XYZ, sRGBColor)
+        rgb_d1_list = [rgb_d1.rgb_r*255, rgb_d1.rgb_g*255, rgb_d1.rgb_b*255]
+
+        XYZ=spec_to_xyz(gen_spectrum_1gauss(*best_pop_1g), df)
+        XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
+        rgb_g1 = convert_color(XYZ, sRGBColor)
+        rgb_g1_list = [rgb_g1.rgb_r*255, rgb_g1.rgb_g*255, rgb_g1.rgb_b*255]
+
+        XYZ=spec_to_xyz(gen_spectrum_2dip(*best_pop_2d), df)
+        XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
+        rgb_d2 = convert_color(XYZ, sRGBColor)
+        rgb_d2_list = [rgb_d2.rgb_r*255, rgb_d2.rgb_g*255, rgb_d2.rgb_b*255]
+
+        XYZ=spec_to_xyz(gen_spectrum_2gauss(*best_pop_2g), df)
+        XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
+        rgb_g2 = convert_color(XYZ, sRGBColor)
+        rgb_g2_list = [rgb_g2.rgb_r*255, rgb_g2.rgb_g*255, rgb_g2.rgb_b*255]
+
+        print(rgb_target_list)
+        palette = np.array([[rgb_target_list, rgb_target_list],  # index 1: green
+                            [rgb_d1_list, rgb_g1_list],  # index 3: white
+                            [rgb_d2_list, rgb_g2_list]], dtype=int)  # index 5: yellow)
+
+
+        io.imshow(palette)
         plt.show()
 
         self.tu_cp = (self.d1_cp, self.d2_cp, self.g1_cp, self.g2_cp) #tuple of color parameter dictionaries to easily access all of these values at once
@@ -316,9 +357,11 @@ class Optimize:
     def op_delta_E_2dip(self,x, df=df):
         center = x[0]
         width = x[1]
-        center2 = x[2]
-        width2 = x[3]
-        spectrum = gen_spectrum_2dip(center,width,center2,width2,peak=1,base=0)
+        peak1 = x[2]
+        center2 = x[3]
+        width2 = x[4]
+        peak2 = x[5]
+        spectrum = gen_spectrum_2dip(center,width,peak1,center2,width2,peak2)
         XYZ=spec_to_xyz(spectrum, df)
         XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
         Lab=convert_color(XYZ, LabColor)
@@ -369,9 +412,11 @@ class Optimize:
     def op_delta_E_2gauss(self,x, df=df):
         center = x[0]
         width = x[1]
-        center2 = x[2]
-        width2 = x[3]
-        spectrum = gen_spectrum_2gauss(center,width,center2,width2,peak=1,base=0)
+        peak1 = x[2]
+        center2 = x[3]
+        width2 = x[4]
+        peak2 = x[5]
+        spectrum = gen_spectrum_2gauss(center,width,peak1,center2,width2,peak2)
         XYZ=spec_to_xyz(spectrum, df)
         XYZ=XYZColor(XYZ[0],XYZ[1],XYZ[2])
         Lab=convert_color(XYZ, LabColor)
