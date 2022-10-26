@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import pandas as pd
 
-interval=0.5 # used for setting correct number of data points
+interval=0.1 # used for setting correct number of data points
 wl=np.arange(380,780+interval,interval) # visible wavelength in nm, 380nm to 780nm, 1nm intervals
 
 cmf = np.loadtxt('cmf.txt', usecols=(1, 2, 3))
@@ -16,7 +16,7 @@ intfunc = interp1d(np.arange(380, 781, 1), cmf[:, 2], fill_value="extrapolate")
 cmf_new[:, 2] = intfunc(wl)
 cmf = cmf_new
 
-df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
+# df = pd.read_excel("ASTMG173_split.xlsx", sheet_name=0)
 
 """Convert a spectrum to an xyz point.
 The spectrum must be on the same grid of points as the colour-matching
@@ -99,6 +99,24 @@ def gen_spectrum_2dip(center1,width1,peak1=1,center2=600,width2=100,peak2=1,wl=w
 
     return spectrum
 
+def gen_spectrum_ndip(centres, widths, peaks=1,wl=wl,base=0): # center and width in nm
+
+    # centres and widths should be np arrays
+    spectrum = np.ones_like(wl)*base
+
+    lower = centres - widths/2
+    upper = centres + widths/2
+
+    for i in range(len(centres)):
+        spectrum[np.all((wl >= lower[i], wl <= upper[i]), axis=0)] = peaks
+
+    # possible peaks are overlapping; R can't be more than peak value
+
+    spectrum[spectrum > peaks] = peaks
+
+    return spectrum
+
+
 # spectrum generation (2 gaussian parameters to spectrum)
 def gen_spectrum_2gauss_old(center1,width1,center2,width2,peak=1,base=0): # center and width in nm
     spectrum=np.array(np.zeros(len(wl)))
@@ -118,19 +136,13 @@ def gen_spectrum_2gauss(center1,width1,peak1=1,center2=600,width2=100,peak2=1,wl
     return spectrum
 
 #Ref https://scipython.com/blog/converting-a-spectrum-to-a-colour/
-def spec_to_xyz(spec, df=df):
+def spec_to_xyz(spec, solar_spec):
     # insert the name of the column as a string in brackets
-    AM1_5G_wl = list(df['A'])
-    AM1_5G_Spec = list(df['C'])
 
-    intfunc = interp1d(AM1_5G_wl, AM1_5G_Spec, fill_value="extrapolate")
-    AM1_5G = intfunc(wl)
-    AM1_5G = np.array(AM1_5G)
-
-    Ymax = np.sum(interval * cmf[:,1] * AM1_5G)
-    X = np.sum(interval * cmf[:,0] * AM1_5G * spec)
-    Y = np.sum(interval * cmf[:,1] * AM1_5G * spec)
-    Z = np.sum(interval * cmf[:,2] * AM1_5G * spec)
+    Ymax = np.sum(interval * cmf[:,1] * solar_spec)
+    X = np.sum(interval * cmf[:,0] * solar_spec * spec)
+    Y = np.sum(interval * cmf[:,1] * solar_spec * spec)
+    Z = np.sum(interval * cmf[:,2] * solar_spec * spec)
 
     if Ymax == 0:
         return (X,Y,Z)
@@ -192,7 +204,7 @@ def spec_to_xyz_old(spec):
 
     return XYZ
 
-def delta_E_CIE2000(Lab1, Lab2, **kwargs):
+def delta_E_CIE2000(Lab1, Lab2):
     """
     Returns the difference :math:`\Delta E_{ab}` between two given *CIE Lab*
     *array_like* colours using CIE 2000 recommendation.
@@ -277,3 +289,11 @@ def delta_E_CIE2000(Lab1, Lab2, **kwargs):
         (delta_C_prime / (kC * sC)) * (delta_C_prime / (kC * sC)) +
         (delta_H_prime / (kH * sH)) * (delta_H_prime / (kH * sH)) +
         (delta_C_prime / (kC * sC)) * (delta_H_prime / (kH * sH)) * rT)
+
+
+def delta_XYZ(target, col):
+
+        # return np.sum(np.abs(target-col))/np.sum(target)
+        dXYZ = np.abs(target - col) / target
+
+        return max(dXYZ)
