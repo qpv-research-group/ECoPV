@@ -1,5 +1,5 @@
 import numpy as np
-from Spectrum_Functions_de import spec_to_xyz, delta_E_CIE2000, gen_spectrum_1dip, gen_spectrum_2dip, gen_spectrum_1gauss, gen_spectrum_2gauss
+from Spectrum_Function import spec_to_xyz, delta_E_CIE2000, gen_spectrum_1dip, gen_spectrum_2dip, gen_spectrum_1gauss, gen_spectrum_2gauss
 
 import matplotlib.pyplot as plt
 from solcore.optimization import DE, PDE

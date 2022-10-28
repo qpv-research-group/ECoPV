@@ -14,10 +14,10 @@ from solcore.solar_cell_solver import solar_cell_solver
 from solcore.structure import Junction
 
 # Define fundamental physical constants
-q=1.60217662E-19  # electronic charge [C]
-k=1.38064852E-23/q   # Boltzmann constant [eV/K]
-h=6.62607004E-34/q  # Planck constant expressed in [eV.s]
-c=299792458  # Speed of light [m.s^-1]
+q = 1.60217662E-19  # electronic charge [C]
+k = 1.38064852E-23/q   # Boltzmann constant [eV/K]
+h = 6.62607004E-34/q  # Planck constant expressed in [eV.s]
+c = 299792458  # Speed of light [m.s^-1]
 
 # Load the AM1.5G solar spectrum
 wl = np.linspace(300, 4000, 4000) * 1e-9    #wl contains the x-ordinate in wavelength

@@ -1,77 +1,32 @@
 import pygmo as pg
-from Spectrum_Functions_de import gen_spectrum_2dip, gen_spectrum_ndip, spec_to_xyz, delta_E_CIE2000, delta_XYZ
+from Spectrum_Function import gen_spectrum_2dip, gen_spectrum_ndip, spec_to_xyz, \
+    delta_E_CIE2000, delta_XYZ, convert_xyY_to_XYZ, convert_xyY_to_Lab, convert_XYZ_to_Lab
 import numpy as np
 from solcore.light_source import LightSource
-from colormath.color_objects import LabColor, XYZColor, sRGBColor, xyYColor
-from colormath.color_conversions import convert_color
+# from colormath.color_objects import LabColor, XYZColor, sRGBColor, xyYColor
+# from colormath.color_conversions import convert_color
 import matplotlib.pyplot as plt
 import pandas as pd
 from skimage import io
 from joblib import Parallel, delayed
-from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.special import lambertw
 from solcore.constants import kb, q, h, c
 from time import time
-import cProfile
-import pstats
-
+# import cProfile
+# import pstats
 
 k = kb/q
 h_eV = h/q
-e = 2.718281828459045
+e = np.exp(1)
 T = 298
 kbT = k*T
 pref = ((2*np.pi* q)/(h_eV**3 * c**2))* kbT
 
-col_thresh = 0.01
+col_thresh = 0.005
 
-n_trials = 10
+n_trials = 2
 
-def convert_xyY_to_Lab(xyY_list):
 
-    xyY = xyYColor(*xyY_list)
-    lab = convert_color(xyY, LabColor)
-    return lab.get_value_tuple()
-
-def convert_xyY_to_XYZ(xyY_list):
-    xyY = xyYColor(*xyY_list)
-    lab = convert_color(xyY, XYZColor)
-    return lab.get_value_tuple()
-
-def reorder_peaks(pop, n_peaks):
-    peaks = pop[:n_peaks]
-    bandgaps = pop[2*n_peaks:]
-    sorted_widths = np.array([x for _, x in sorted(zip(peaks, pop[n_peaks:]))])
-    peaks.sort()
-    bandgaps.sort()
-    return np.hstack((peaks, sorted_widths, bandgaps))
-
-def getPmax(egs, flux):
-    # Since we need previous eg info have to iterate the Jsc array
-    jscs = np.empty_like(egs)  # Quick way of defining jscs with same dimensions as egs
-    j01s = np.empty_like(egs)
-
-    upperE = 4.14
-    for i, eg in enumerate(egs):
-        j01s[i] = pref * (eg ** 2 + 2 * eg * (kbT) + 2 * (kbT) ** 2) * np.exp(-(eg) / (kbT))
-        jscs[i] = q * np.sum(flux[np.all((wl_cell < 1240 / eg, wl_cell > 1240 / upperE), axis=0)]) * interval
-        # plt.figure()
-        # plt.plot(wl_cell[np.all((wl_cell < 1240 / eg, wl_cell > 1240 / upperE), axis=0)], flux[np.all((wl_cell < 1240 / eg, wl_cell > 1240 / upperE), axis=0)])
-        # plt.show()
-        upperE = eg
-
-    Vmaxs = (kbT * (lambertw(e * (jscs / j01s)) - 1)).real
-    Imaxs = jscs - j01s * np.exp(Vmaxs / (kbT))
-
-    # Find the minimum Imaxs
-    minImax = np.amin(Imaxs)
-
-    #   Find tandem voltage
-
-    vsubcell = kbT * np.log((jscs - minImax) / j01s)
-    vTandem = np.sum(vsubcell)
-
-    return vTandem * minImax
 
 interval=0.1 # interval between each two wavelength points, 0.02 needed for low dE values
 wl=np.arange(380,780+interval,interval)
@@ -112,8 +67,8 @@ class two_dip_colour_function_mobj:
         # width2 = x[3]
         # Eg = x[4]
 
-        profile = cProfile.Profile()
-        profile.enable()
+        # profile = cProfile.Profile()
+        # profile.enable()
         cs = x[:self.n_peaks]
         ws = x[self.n_peaks:2*self.n_peaks]
         Egs = -np.sort(-x[2*self.n_peaks:]) #[0]
@@ -150,9 +105,9 @@ class two_dip_colour_function_mobj:
         eta = getPmax(Egs, flux)/1000
         # print(eta)
 
-        profile.disable()
-        ps = pstats.Stats(profile)
-        ps.print_stats()
+        # profile.disable()
+        # ps = pstats.Stats(profile)
+        # ps.print_stats()
 
         return delta, eta
 
@@ -171,8 +126,31 @@ class two_dip_colour_function_mobj:
         plt.show()
 
     def get_bounds(self):
-        return ([self.c_bounds[0]] * self.n_peaks + [self.w_bounds[0]] * self.n_peaks + self.n_juncs*[0.9],
-                [self.c_bounds[1]] * self.n_peaks + [self.w_bounds[1]] * self.n_peaks + self.n_juncs*[2.2])
+
+        # Limits for n junctions based on limits for a black cell from https://doi.org/10.1016/0927-0248(96)00015-3
+
+        if self.n_juncs == 1:
+            Eg_bounds = [[1.13-0.3],
+                         [1.13+0.3]]
+
+        elif self.n_juncs == 2:
+            Eg_bounds = [[0.94-0.3, 1.64-0.3],
+                         [0.94+0.3, 1.64+0.3]]
+
+        elif self.n_juncs == 3:
+            Eg_bounds = [[0.71-0.3, 1.16-0.3, 1.83-0.3],
+                         [0.71+0.3, 1.16+0.3, 1.83+0.3]]
+
+        elif self.n_juncs == 4:
+            Eg_bounds = [[0.53-0.3, 1.13-0.3, 1.55-0.3, 2.13-0.3],
+                         [0.53+0.3, 1.13+0.3, 1.55+0.3, 2.13+0.3]]
+
+        else:
+            Eg_bounds = [[0.5]*self.n_juncs,
+                         [4.0]*self.n_juncs]
+
+        return ([self.c_bounds[0]] * self.n_peaks + [self.w_bounds[0]] * self.n_peaks + Eg_bounds[0],
+                [self.c_bounds[1]] * self.n_peaks + [self.w_bounds[1]] * self.n_peaks + Eg_bounds[1])
 
     def get_name(self):
         return "Two-dip colour generation function"
@@ -202,7 +180,7 @@ class two_dip_colour_function_mobj:
 # ndf, dl, dc, ndr = pg.fast_non_dominated_sorting(pop.get_f())
 
 
-color_names =(
+color_names = [
     "DarkSkin",
     "LightSkin",
     "BlueSky",
@@ -227,14 +205,21 @@ color_names =(
     "Neutral-5",
     "Neutral-3-5",
     "Black-2"
-    )
+    ]
 
 single_J_result = pd.read_csv("paper_colours.csv")
+black_result = single_J_result.loc[single_J_result['Colour'] == 'black 2']
+black_result.loc[23, 'Colour'] = 'black'
+
+single_J_result = pd.concat([black_result, single_J_result])
 
 color_xyY = np.array(single_J_result[['x', 'y', 'Y']])
 
 color_XYZ = np.array([convert_xyY_to_XYZ(x) for x in color_xyY])
+color_YXZ = np.insert(color_XYZ, 0, [0, 0, 0], axis=0)
+color_names.insert(0, 'Black')
 
+color_Lab = np.array([convert_xyY_to_Lab(x) for x in color_xyY])
 
 def make_new_population(prob, popsize, load_prev, i):
     pop = pg.population(prob=prob, size=popsize)
@@ -344,53 +329,79 @@ def internal_run(target, i1, n_peaks=2, n_gaps=1, popsize=80, gen=1000, load_pre
 
 
 n_peaks = 2
-n_gaps = 2
+n_gaps = 1
 
+# internal_run(color_XYZ[0], 0, n_peaks, n_gaps, 30, 10, 0)
 
-internal_run(color_XYZ[0], 0, n_peaks, n_gaps, 30, 10, 0)
+compare_results = np.zeros((len(color_XYZ), n_trials, n_peaks*2 + n_gaps + 1))
 
+start = time()
+
+XYZ_final = np.empty((len(color_names), n_trials, 3))
+Lab_final = np.empty((len(color_names), n_trials, 3))
+dLab = np.empty((len(color_names), n_trials))
+
+for j1 in range(n_trials):
+
+    eff_result_par = Parallel(n_jobs=-1)(delayed(internal_run)
+                                         (color_XYZ[i1], i1, n_peaks, n_gaps, 80, 300, 0) for i1 in range(len(color_XYZ)))
+    loop_result = np.stack(eff_result_par)
+    compare_results[:, j1] = loop_result
+    best_pops = loop_result[:, 1:]
+
+    XYZ_final[:, j1, :] = np.stack([XYZ_from_pop_dips(x, n_peaks) for x in best_pops])
+    Lab_final[:, j1, :] = np.stack([convert_XYZ_to_Lab(x) for x in XYZ_final[:, j1, :]])
+
+    dLab[:, j1] = np.stack([delta_E_CIE2000(x, color_Lab[i1]) for i1, x in enumerate(Lab_final[:, j1, :])])
+
+print(time()-start)
+
+#single_J_result = pd.read_csv("paper_colours.csv")
+dXYZ = (XYZ_final - color_XYZ[:, None, :])/color_XYZ[:, None, :]
+
+# Maximum dLab observed per colour:
+dLab_max = np.max(dLab, 1)
+
+# plt.figure()
+# plt.plot(np.sum(np.abs(dXYZ), axis=2), dLab, 'o', mfc='none')
+# plt.show()
 #
-# compare_results = np.zeros((len(color_XYZ), n_trials, n_peaks*2 + n_gaps + 1))
-#
-# start = time()
-#
-# for j1 in range(n_trials):
-#
-#     eff_result_par = Parallel(n_jobs=-1)(delayed(internal_run)
-#                                          (color_XYZ[i1], i1, n_peaks, n_gaps, 80, 300, 0) for i1 in range(len(color_XYZ)))
-#     compare_results[:, j1] = np.stack(eff_result_par)
-#
-# print(time()-start)
-#
-# #single_J_result = pd.read_csv("paper_colours.csv")
-#
+# plt.figure()
+# plt.plot(dXYZ[:,:,2], dLab, 'o', mfc='none')
+# plt.show()
+
+plt.figure(figsize=(7.5,3))
+plt.plot(color_names, compare_results[:,:,0]*100, 'o', mfc='none')
+plt.plot(color_names, single_J_result['eta'], 'or', mfc='none', label= '1J eff')
+# plt.ylim(750,)
+plt.xticks(rotation=45)
+plt.legend()
+plt.ylabel("Efficiency (%)")
+plt.tight_layout()
+plt.show()
+
 # plt.figure(figsize=(8,3))
-# plt.plot(color_names, compare_results[:,:,0], 'o', mfc='none')
-# plt.plot(color_names, single_J_result['eta']/100, 'or', mfc='none')
+# plt.plot(color_names, compare_results[:,:,1], 'o', mfc='none')
 # # plt.ylim(750,)
 # plt.xticks(rotation=45)
 # plt.tight_layout()
 # plt.show()
-# #
-# # plt.figure(figsize=(8,3))
-# # plt.plot(color_names, compare_results[:,:,1], 'o', mfc='none')
-# # # plt.ylim(750,)
-# # plt.xticks(rotation=45)
-# # plt.tight_layout()
-# # plt.show()
-#
-#
-#
-# max_eff_index = np.argmax(compare_results[:,:, 0], 1)
-# Eg_max_eta = [compare_results[i1,max_eff_index[i1],2*n_peaks+1] for i1 in range(len(color_XYZ))]
-#
-# plt.figure(figsize=(8,3))
-# plt.plot(color_names, compare_results[:,:, 2*n_peaks+1], 'o', mfc='none')
+
+
+max_eff_index = np.argmax(compare_results[:,:, 0], 1)
+Eg_max_eta = [compare_results[i1,max_eff_index[i1],2*n_peaks+1] for i1 in range(len(color_XYZ))]
+
+plt.figure(figsize=(7.5,3))
+plt.plot(color_names, compare_results[:,:, 2*n_peaks+1], 'o', mfc='none')
+# plt.plot(color_names, compare_results[:,:, 2*n_peaks+2], 'o', mfc='none')
+# plt.plot(color_names, compare_results[:,:, 2*n_peaks+3], 'o', mfc='none')
 # plt.plot(color_names, Eg_max_eta, 'ko', mfc='none')
-# # plt.ylim(750,)
-# plt.xticks(rotation=45)
-# plt.tight_layout()
-# plt.show()
+# plt.ylim(750,)
+plt.legend()
+plt.xticks(rotation=45)
+plt.ylabel("Bandgaps (eV)")
+plt.tight_layout()
+plt.show()
 #
 # fig, axs = plt.subplots(len(color_XYZ)//2, 2, figsize=(4, 12))
 # axs = axs.flatten()

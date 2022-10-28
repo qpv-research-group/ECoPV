@@ -1,5 +1,5 @@
 import pygmo as pg
-from Spectrum_Functions_de import gen_spectrum_2dip, spec_to_xyz, delta_E_CIE2000
+from Spectrum_Function import gen_spectrum_2dip, spec_to_xyz, delta_E_CIE2000
 import numpy as np
 from solcore.light_source import LightSource
 from colormath.color_objects import LabColor, XYZColor, sRGBColor, xyYColor
