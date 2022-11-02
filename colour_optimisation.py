@@ -1,5 +1,5 @@
 import pygmo as pg
-from Spectrum_Function import gen_spectrum_ndip, spec_to_xyz, load_cmf, delta_XYZ
+from Spectrum_Function import gen_spectrum_ndip, gen_spectrum_ndip_varyheight, spec_to_xyz, load_cmf, delta_XYZ
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -18,16 +18,22 @@ pref = ((2*np.pi* q)/(h_eV**3 * c**2))* kbT
 
 class single_colour:
 
-    def __init__(self):
+    def __init__(self, plot_pareto=False, fix_height=True):
+        self.plot_pareto = plot_pareto
+        self.fix_height = fix_height
         pass
 
     def run(self, target, colour_name, colour_threshold, photon_flux, n_peaks=2, n_gaps=1, popsize=80, gen=1000, max_tries=3):
 
-        p_init = two_dip_colour_function_mobj(n_peaks, n_gaps, target, photon_flux, 1000)
+        p_init = n_dip_colour_function_mobj(n_peaks, n_gaps, target, photon_flux, 1000, self.fix_height, 1)
         udp = pg.problem(p_init)
         algo = pg.algorithm(pg.moead(gen=gen))#, preserve_diversity=True, decomposition="bi"))
 
         pop = pg.population(prob=udp, size=popsize)
+
+        if self.plot_pareto:
+            ax = pg.plot_non_dominated_fronts(pop.get_f())
+
 
         found_col = False
 
@@ -42,20 +48,15 @@ class single_colour:
 
             acc = a[a[:, 0] < colour_threshold]
 
-            ndf, _, _, _ = pg.fast_non_dominated_sorting(pop.get_f())
+            ndf, dl, dc, ndr = pg.fast_non_dominated_sorting(pop.get_f())
 
             # print(color_names[i1], len(ndf))
             n_tries += 1
 
             if len(acc) >= 1: # and len(ndf) == 1:
 
-                # if len(ndf) > 1:
-                #     pg.plot_non_dominated_fronts(pop.get_f())
-                #     plt.title(color_names[i1])
-                #     plt.show()
-
                 ndf, _, _, _ = pg.fast_non_dominated_sorting(pop.get_f())
-                # print(colour_name, len(ndf), len(acc), n_tries)
+                print(colour_name, len(ndf), len(acc), n_tries)
                 found_col = True
                 acc_pop = pop.get_x()[a[:, 0] < colour_threshold]
 
@@ -66,6 +67,15 @@ class single_colour:
                 best_index = np.argmin(acc[:, 1])
 
                 best_pop = acc_pop[best_index]
+
+                if self.plot_pareto:
+                    pg.plot_non_dominated_fronts(pop.get_f(), axes=ax)
+                    # plt.show()
+                    # plt.plot(acc[:,0], acc[:,1], 'o', mfc='none')
+                    plt.xlabel(r"$\Delta$ X/Y/Z")
+                    plt.ylabel(r"$-\eta$")
+                    plt.title(colour_name)
+                    plt.show()
 
             elif n_tries >= max_tries:
                 print(colour_name, ": MAKING NEW POPULATION", str(np.min(pop.get_f()[:,0])),
@@ -99,14 +109,14 @@ def XYZ_from_pop_dips(pop, n_peaks, inc_spec, interval):
 
     return XYZ
 
-def getPmax(egs, flux, wl, interval):
+def getPmax(egs, flux, wl, interval, rad_eff=1):
     # Since we need previous Eg info have to iterate the Jsc array
     jscs = np.empty_like(egs)  # Quick way of defining jscs with same dimensions as egs
     j01s = np.empty_like(egs)
 
     upperE = 4.14
     for i, eg in enumerate(egs):
-        j01s[i] = pref * (eg ** 2 + 2 * eg * (kbT) + 2 * (kbT) ** 2) * np.exp(-(eg) / (kbT))
+        j01s[i] = (pref/rad_eff) * (eg ** 2 + 2 * eg * (kbT) + 2 * (kbT) ** 2) * np.exp(-(eg) / (kbT))
         jscs[i] = q * np.sum(flux[np.all((wl < 1240 / eg, wl > 1240 / upperE), axis=0)]) * interval
         # plt.figure()
         # plt.plot(wl_cell[np.all((wl_cell < 1240 / eg, wl_cell > 1240 / upperE), axis=0)], flux[np.all((wl_cell < 1240 / eg, wl_cell > 1240 / upperE), axis=0)])
@@ -126,14 +136,20 @@ def getPmax(egs, flux, wl, interval):
 
     return vTandem * minImax
 
-class two_dip_colour_function_mobj:
-    def __init__(self, n_peaks, n_juncs, tg, photon_flux, power_in=1000):
-        self.dim = n_peaks*2 + n_juncs
+class n_dip_colour_function_mobj:
+    def __init__(self, n_peaks, n_juncs, tg, photon_flux, power_in=1000, fix_height=True, max_height=1,
+                 w_bounds=None):
+
         self.n_peaks = n_peaks
         self.n_juncs = n_juncs
         self.target_color = tg
         self.c_bounds = [380, 780]
-        self.w_bounds = [0, 150]
+        if w_bounds is None:
+            self.w_bounds = [0, np.max([50, 160*tg[1]])]
+
+        else:
+            self.w_bounds = w_bounds
+
         self.cell_wl = photon_flux[0]
         self.col_wl = self.cell_wl[np.all([self.cell_wl >= self.c_bounds[0], self.cell_wl <= self.c_bounds[1]], axis=0)]
         self.solar_flux = photon_flux[1]
@@ -141,6 +157,51 @@ class two_dip_colour_function_mobj:
         self.incident_power = power_in
         self.interval = np.round(np.diff(self.cell_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
+
+        self.fix_height = fix_height
+        if fix_height:
+            self.dim = n_peaks * 2 + n_juncs
+            self.spec_func = self.make_spec_fixedheight
+
+        else:
+            self.h_bounds = [0, 1]
+            self.dim = n_peaks*4 + n_juncs
+            self.spec_func = self.make_spec_varyheight
+
+    def make_spec_fixedheight(self, x):
+        cs = x[:self.n_peaks]
+        ws = x[self.n_peaks:2 * self.n_peaks]
+        Egs = -np.sort(-x[2 * self.n_peaks:])  # [0]
+
+        # T = 298
+
+        R_spec = gen_spectrum_ndip(cs, ws, wl=self.col_wl)
+
+        XYZ=np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        R_spec_cell = gen_spectrum_ndip(cs, ws, wl=self.cell_wl)
+        # TODO: just make this by subsetting other array!
+
+        return delta, Egs, R_spec_cell
+
+    def make_spec_varyheight(self, x):
+
+        cs = x[:self.n_peaks]
+        ws = x[self.n_peaks:2 * self.n_peaks]
+        hs = x[2*self.n_peaks:4*self.n_peaks]
+        Egs = -np.sort(-x[-self.n_peaks:])  # [0]
+
+        # T = 298
+
+        R_spec = gen_spectrum_ndip_varyheight(cs, ws, hs, wl=self.col_wl)
+
+        XYZ = np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        R_spec_cell = gen_spectrum_ndip_varyheight(cs, ws, hs, wl=self.cell_wl)
+
+        return delta, Egs, R_spec_cell
 
     def calculate(self, x):
         # center = x[0]
@@ -151,17 +212,8 @@ class two_dip_colour_function_mobj:
 
         # profile = cProfile.Profile()
         # profile.enable()
-        cs = x[:self.n_peaks]
-        ws = x[self.n_peaks:2*self.n_peaks]
-        Egs = -np.sort(-x[2*self.n_peaks:]) #[0]
 
-        # T = 298
-
-        R_spec = gen_spectrum_ndip(cs, ws, wl=self.col_wl)
-        XYZ=np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
-        delta = delta_XYZ(self.target_color, XYZ)
-
-        R_spec_cell = gen_spectrum_ndip(cs, ws, wl=self.cell_wl)
+        delta, Egs, R_spec_cell = self.spec_func(x)
 
         # Establish an interpolation function to allow integration over arbitrary limits
         # solarfluxInterpolate = InterpolatedUnivariateSpline(wl_cell, light * (1 - R_spec_cell), k=1)
@@ -225,8 +277,24 @@ class two_dip_colour_function_mobj:
             Eg_bounds = [[0.5]*self.n_juncs,
                          [4.0]*self.n_juncs]
 
-        return ([self.c_bounds[0]] * self.n_peaks + [self.w_bounds[0]] * self.n_peaks + Eg_bounds[0],
-                [self.c_bounds[1]] * self.n_peaks + [self.w_bounds[1]] * self.n_peaks + Eg_bounds[1])
+        if self.fix_height:
+
+            return ([self.c_bounds[0]] * self.n_peaks +
+                    [self.w_bounds[0]] * self.n_peaks +
+                    Eg_bounds[0],
+                    [self.c_bounds[1]] * self.n_peaks +
+                    [self.w_bounds[1]] * self.n_peaks +
+                    Eg_bounds[1])
+
+        else:
+            return ([[self.c_bounds[0]] * self.n_peaks +
+                     [self.w_bounds[0]] * self.n_peaks +
+                     [self.h_bounds[0]] * self.n_peaks +
+                     Eg_bounds[0],
+                    [self.c_bounds[1]] * self.n_peaks +
+                     [self.w_bounds[1]] * self.n_peaks +
+                     [self.h_bounds[1]] * self.n_peaks +
+                     Eg_bounds[1]])
 
     def get_name(self):
         return "Two-dip colour generation function"

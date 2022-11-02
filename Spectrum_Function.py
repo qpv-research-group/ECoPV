@@ -45,7 +45,7 @@ def convert_XYZ_to_Lab(XYZ_list):
     lab = convert_color(XYZ, LabColor)
     return lab.get_value_tuple()
 
-def gen_spectrum_ndip(centres, widths, peaks=1, wl=None, base=0): # center and width in nm
+def gen_spectrum_ndip(centres, widths, wl=None, base=0): # center and width in nm
 
     # centres and widths should be np arrays
     spectrum = np.ones_like(wl)*base
@@ -54,14 +54,60 @@ def gen_spectrum_ndip(centres, widths, peaks=1, wl=None, base=0): # center and w
     upper = centres + widths/2
 
     for i in range(len(centres)):
-        spectrum[np.all((wl >= lower[i], wl <= upper[i]), axis=0)] = peaks
+        spectrum[np.all((wl >= lower[i], wl <= upper[i]), axis=0)] = 1
 
     # possible peaks are overlapping; R can't be more than peak value
 
-    spectrum[spectrum > peaks] = peaks
+    spectrum[spectrum > 1] = 1
 
     return spectrum
 
+
+def gen_spectrum_ndip_varyheight(centres, widths, heights, wl=None, base=0): # center and width in nm
+
+    # centres and widths should be np arrays
+    spectrum = np.ones_like(wl)*base
+
+    lower = centres - widths/2
+    upper = centres + widths/2
+
+    for i in range(len(centres)):
+        spectrum[np.all((wl >= lower[i], wl <= upper[i]), axis=0)] = heights[i]
+
+    # possible peaks are overlapping; R can't be more than peak value
+
+    spectrum[spectrum > max(heights)] = max(heights)
+
+    return spectrum
+
+
+def gen_spectrum_ngauss(centres, widths, wl=None, height=1, base=0): # center and width in nm
+
+    spec = np.zeros_like(wl)
+
+    for c, w in zip(centres, widths):
+        spec += height*np.exp(-(wl-c)**2/(2*w**2))
+
+    # find max in between peaks
+
+    # between peaks:
+    btwn = np.all((wl > centres[0] ,wl < centres[1]), axis=0)
+
+    plt.figure()
+    plt.plot(wl, spec)
+
+    min_ind = np.argmin(spec[btwn])
+
+    min_wl = wl[btwn][min_ind]
+
+    spec[wl < min_wl] = height*spec[wl < min_wl]/max(spec[wl < min_wl])
+    spec[wl >= min_wl] = height*spec[wl >= min_wl]/max(spec[wl >= min_wl])
+
+
+    plt.plot(wl, spec)
+    plt.show()
+
+    return spec, min_wl
 
 #Ref https://scipython.com/blog/converting-a-spectrum-to-a-colour/
 def spec_to_xyz(spec, solar_spec, cmf, interval):
