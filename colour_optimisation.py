@@ -1,5 +1,7 @@
 import pygmo as pg
-from Spectrum_Function import gen_spectrum_ndip, gen_spectrum_ndip_varyheight, spec_to_xyz, load_cmf, delta_XYZ
+from Spectrum_Function import gen_spectrum_ndip, gen_spectrum_ndip_varyheight, \
+    gen_spectrum_onegauss, gen_spectrum_twogauss, gen_spectrum_twogauss_varyheight, \
+    spec_to_xyz, load_cmf, delta_XYZ
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -270,7 +272,10 @@ class n_dip_colour_function_mobj:
                          [0.71+0.3, 1.16+0.3, 1.83+0.3]]
 
         elif self.n_juncs == 4:
-            Eg_bounds = [[0.53-0.3, 1.13-0.3, 1.55-0.3, 2.13-0.3],
+
+
+
+            Eg_bounds = [[0.53-0.3, 1.13-0.3, 1.55-0.3, 2.13-0.5],
                          [0.53+0.3, 1.13+0.3, 1.55+0.3, 2.13+0.3]]
 
         else:
@@ -295,6 +300,318 @@ class n_dip_colour_function_mobj:
                      [self.w_bounds[1]] * self.n_peaks +
                      [self.h_bounds[1]] * self.n_peaks +
                      Eg_bounds[1]])
+
+    def get_name(self):
+        return "Two-dip colour generation function"
+
+    def get_extra_info(self):
+        return "\tDimensions: " + str(self.dim)
+
+    def get_nobj(self):
+        return 2
+
+
+class n_gauss_colour_function_mobj:
+    def __init__(self, n_peaks, n_juncs, tg, photon_flux, power_in=1000, fix_height=True, max_height=1,
+                 w_bounds=None):
+
+        self.n_peaks = n_peaks
+        self.n_juncs = n_juncs
+        self.target_color = tg
+        self.c_bounds = [380, 780]
+        if w_bounds is None:
+            self.w_bounds = [1, np.max([0.75*50, 0.75*160*tg[1]])]
+
+        else:
+            self.w_bounds = w_bounds
+
+        self.cell_wl = photon_flux[0]
+        self.col_wl = self.cell_wl[np.all([self.cell_wl >= self.c_bounds[0], self.cell_wl <= self.c_bounds[1]], axis=0)]
+        self.solar_flux = photon_flux[1]
+        self.solar_spec = self.solar_flux[np.all([self.cell_wl >= 380, self.cell_wl <= 780], axis=0)]
+        self.incident_power = power_in
+        self.interval = np.round(np.diff(self.cell_wl)[0], 6)
+        self.cmf = load_cmf(self.col_wl)
+
+        self.gen_spectrum = [gen_spectrum_onegauss, gen_spectrum_twogauss][n_peaks-1]
+
+        self.fix_height = fix_height
+        if fix_height:
+            self.dim = n_peaks * 2 + n_juncs
+            self.spec_func = self.make_spec_fixedheight
+
+        else:
+            self.h_bounds = [0, 1]
+            self.dim = n_peaks*4 + n_juncs
+            self.spec_func = self.make_spec_varyheight
+
+    def make_spec_fixedheight(self, x):
+        cs = x[:self.n_peaks]
+        ws = x[self.n_peaks:2 * self.n_peaks]
+        Egs = -np.sort(-x[2 * self.n_peaks:])  # [0]
+
+        # T = 298
+
+        R_spec = self.gen_spectrum(cs, ws, wl=self.col_wl)
+
+        XYZ=np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        R_spec_cell = self.gen_spectrum(cs, ws, wl=self.cell_wl)
+        # TODO: just make this by subsetting other array!
+
+        return delta, Egs, R_spec_cell
+
+    def make_spec_varyheight(self, x):
+
+        cs = x[:self.n_peaks]
+        ws = x[self.n_peaks:2 * self.n_peaks]
+        hs = x[2*self.n_peaks:4*self.n_peaks]
+        Egs = -np.sort(-x[-self.n_peaks:])  # [0]
+
+        # T = 298
+
+        R_spec = gen_spectrum_ndip_varyheight(cs, ws, hs, wl=self.col_wl)
+
+        XYZ = np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        R_spec_cell = gen_spectrum_ndip_varyheight(cs, ws, hs, wl=self.cell_wl)
+
+        return delta, Egs, R_spec_cell
+
+    def calculate(self, x):
+        # center = x[0]
+        # center2 = x[1]
+        # width = x[2]
+        # width2 = x[3]
+        # Eg = x[4]
+
+        # profile = cProfile.Profile()
+        # profile.enable()
+
+        delta, Egs, R_spec_cell = self.spec_func(x)
+
+        # Establish an interpolation function to allow integration over arbitrary limits
+        # solarfluxInterpolate = InterpolatedUnivariateSpline(wl_cell, light * (1 - R_spec_cell), k=1)
+        #
+        # Jsc = q * solarfluxInterpolate.integral(300, 1240 / Eg)
+        # Jsc = q * int_flux
+
+        flux = self.solar_flux * (1 - R_spec_cell)
+        # Jsc = q*np.sum(flux[wl_cell < 1240/Eg])*interval
+        #
+        # J01 = pref * (Eg**2 + 2*Eg*(kbT) + 2*(kbT)**2)*np.exp(-(Eg)/(kbT))
+        #
+        # # Vmax = (kbT*(lambertw(np.exp(1)*(Jsc/J01))-1)).real
+        # Vmax = (kbT * (lambertw(e * (Jsc / J01)) - 1)).real
+        # Imax = Jsc - J01*np.exp(Vmax/(kbT))
+        # eta = Vmax*Imax/1000
+
+        eta = getPmax(Egs, flux, self.cell_wl, self.interval)/self.incident_power
+
+        # profile.disable()
+        # ps = pstats.Stats(profile)
+        # ps.print_stats()
+
+        return delta, eta
+
+    def fitness(self, x):
+        delta, eff = self.calculate(x)
+
+        return [delta, -eff]
+
+    def plot(self, x):
+
+        delta_E, R_spec = self.calculate(x)
+
+        plt.figure()
+        plt.plot(self.col_wl, R_spec)
+        plt.title(str(delta_E))
+        plt.show()
+
+    def get_bounds(self):
+
+        # Limits for n junctions based on limits for a black cell from https://doi.org/10.1016/0927-0248(96)00015-3
+
+        if self.n_juncs == 1:
+            Eg_bounds = [[1.13-0.3],
+                         [1.13+0.3]]
+
+        elif self.n_juncs == 2:
+            Eg_bounds = [[0.94-0.3, 1.64-0.3],
+                         [0.94+0.3, 1.64+0.3]]
+
+        elif self.n_juncs == 3:
+            Eg_bounds = [[0.71-0.3, 1.16-0.3, 1.83-0.3],
+                         [0.71+0.3, 1.16+0.3, 1.83+0.3]]
+
+        elif self.n_juncs == 4:
+            Eg_bounds = [[0.53-0.3, 1.13-0.3, 1.55-0.3, 2.13-0.5],
+                         [0.53+0.3, 1.13+0.3, 1.55+0.3, 2.13+0.3]]
+
+        else:
+            Eg_bounds = [[0.5]*self.n_juncs,
+                         [4.0]*self.n_juncs]
+
+        if self.fix_height:
+
+            return ([self.c_bounds[0]] * self.n_peaks +
+                    [self.w_bounds[0]] * self.n_peaks +
+                    Eg_bounds[0],
+                    [self.c_bounds[1]] * self.n_peaks +
+                    [self.w_bounds[1]] * self.n_peaks +
+                    Eg_bounds[1])
+
+        else:
+            return ([self.c_bounds[0]] * self.n_peaks +
+                     [self.w_bounds[0]] * self.n_peaks +
+                     [self.h_bounds[0]] * self.n_peaks +
+                     Eg_bounds[0],
+                    [self.c_bounds[1]] * self.n_peaks +
+                     [self.w_bounds[1]] * self.n_peaks +
+                     [self.h_bounds[1]] * self.n_peaks +
+                     Eg_bounds[1])
+
+    def get_name(self):
+        return "Two-dip colour generation function"
+
+    def get_extra_info(self):
+        return "\tDimensions: " + str(self.dim)
+
+    def get_nobj(self):
+        return 2
+
+
+class n_gauss_colour_function_mobj_varyheight:
+    def __init__(self, n_peaks, n_juncs, tg, photon_flux, power_in=1000, max_height=1,
+                 w_bounds=None):
+
+        self.n_peaks = n_peaks
+        self.n_juncs = n_juncs
+        self.target_color = tg
+        self.c_bounds = [380, 780]
+        self.max_height = max_height
+        if w_bounds is None:
+            self.w_bounds = [1, np.max([0.75*50, 0.75*160*tg[1]])]
+
+        else:
+            self.w_bounds = w_bounds
+
+        self.cell_wl = photon_flux[0]
+        self.col_wl = self.cell_wl[np.all([self.cell_wl >= self.c_bounds[0], self.cell_wl <= self.c_bounds[1]], axis=0)]
+        self.solar_flux = photon_flux[1]
+        self.solar_spec = self.solar_flux[np.all([self.cell_wl >= 380, self.cell_wl <= 780], axis=0)]
+        self.incident_power = power_in
+        self.interval = np.round(np.diff(self.cell_wl)[0], 6)
+        self.cmf = load_cmf(self.col_wl)
+        self.dim = 2*n_peaks + 1 + n_juncs
+
+        self.gen_spectrum = [gen_spectrum_onegauss, gen_spectrum_twogauss_varyheight][n_peaks-1]
+
+    def make_spec_varyheight(self, x):
+
+        # pop = reorder_peaks(x, 2)
+        cs = x[:2]
+        ws = x[2:4]
+        hs = x[4:6]
+        Egs = -np.sort(-x[-self.n_juncs:])  # [0]
+
+        # T = 298
+
+        R_spec = self.gen_spectrum(cs, ws, hs, self.max_height, wl=self.col_wl)
+
+        XYZ = np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        R_spec_cell = self.gen_spectrum(cs, ws, hs, self.max_height, wl=self.cell_wl)
+
+        return delta, Egs, R_spec_cell
+
+    def calculate(self, x):
+        # center = x[0]
+        # center2 = x[1]
+        # width = x[2]
+        # width2 = x[3]
+        # Eg = x[4]
+
+        # profile = cProfile.Profile()
+        # profile.enable()
+
+        delta, Egs, R_spec_cell = self.make_spec_varyheight(x)
+
+        # Establish an interpolation function to allow integration over arbitrary limits
+        # solarfluxInterpolate = InterpolatedUnivariateSpline(wl_cell, light * (1 - R_spec_cell), k=1)
+        #
+        # Jsc = q * solarfluxInterpolate.integral(300, 1240 / Eg)
+        # Jsc = q * int_flux
+
+        flux = self.solar_flux * (1 - R_spec_cell)
+        # Jsc = q*np.sum(flux[wl_cell < 1240/Eg])*interval
+        #
+        # J01 = pref * (Eg**2 + 2*Eg*(kbT) + 2*(kbT)**2)*np.exp(-(Eg)/(kbT))
+        #
+        # # Vmax = (kbT*(lambertw(np.exp(1)*(Jsc/J01))-1)).real
+        # Vmax = (kbT * (lambertw(e * (Jsc / J01)) - 1)).real
+        # Imax = Jsc - J01*np.exp(Vmax/(kbT))
+        # eta = Vmax*Imax/1000
+
+        eta = getPmax(Egs, flux, self.cell_wl, self.interval)/self.incident_power
+
+        # profile.disable()
+        # ps = pstats.Stats(profile)
+        # ps.print_stats()
+
+        return delta, eta
+
+    def fitness(self, x):
+        delta, eff = self.calculate(x)
+
+        return [delta, -eff]
+
+    def plot(self, x):
+
+        delta_E, R_spec = self.calculate(x)
+
+        plt.figure()
+        plt.plot(self.col_wl, R_spec)
+        plt.title(str(delta_E))
+        plt.show()
+
+    def get_bounds(self):
+
+        # Limits for n junctions based on limits for a black cell from https://doi.org/10.1016/0927-0248(96)00015-3
+
+        if self.n_juncs == 1:
+            Eg_bounds = [[1.13-0.3],
+                         [1.13+0.3]]
+
+        elif self.n_juncs == 2:
+            Eg_bounds = [[0.94-0.3, 1.64-0.3],
+                         [0.94+0.3, 1.64+0.3]]
+
+        elif self.n_juncs == 3:
+            Eg_bounds = [[0.71-0.3, 1.16-0.3, 1.83-0.3],
+                         [0.71+0.3, 1.16+0.3, 1.83+0.3]]
+
+        elif self.n_juncs == 4:
+            Eg_bounds = [[0.53-0.3, 1.13-0.3, 1.55-0.3, 2.13-0.5],
+                         [0.53+0.3, 1.13+0.3, 1.55+0.3, 2.13+0.3]]
+
+        else:
+            Eg_bounds = [[0.5]*self.n_juncs,
+                         [4.0]*self.n_juncs]
+
+
+
+        return ([self.c_bounds[0]] * self.n_peaks +
+                 [self.w_bounds[0]] * self.n_peaks +
+                 [0] * self.n_peaks +
+                 Eg_bounds[0],
+                [self.c_bounds[1]] * self.n_peaks +
+                 [self.w_bounds[1]] * self.n_peaks +
+                 [self.max_height] * self.n_peaks +
+                 Eg_bounds[1])
 
     def get_name(self):
         return "Two-dip colour generation function"

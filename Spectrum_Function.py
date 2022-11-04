@@ -81,33 +81,31 @@ def gen_spectrum_ndip_varyheight(centres, widths, heights, wl=None, base=0): # c
     return spectrum
 
 
-def gen_spectrum_ngauss(centres, widths, wl=None, height=1, base=0): # center and width in nm
+def gen_spectrum_twogauss(centres, widths, wl=None, height=1, base=0): # center and width in nm
 
-    spec = np.zeros_like(wl)
+    wider_peak = np.argmax(widths)
 
-    for c, w in zip(centres, widths):
-        spec += height*np.exp(-(wl-c)**2/(2*w**2))
+    spec = np.exp(-(wl - centres[wider_peak]) ** 2 / (2 * widths[wider_peak] ** 2))
 
-    # find max in between peaks
+    height_of_2 = 1 - np.exp(
+        -(centres[wider_peak - 1] - centres[wider_peak]) ** 2 / (2 * widths[wider_peak] ** 2))
 
-    # between peaks:
-    btwn = np.all((wl > centres[0] ,wl < centres[1]), axis=0)
+    spec += height_of_2 * np.exp(-(wl - centres[wider_peak - 1]) ** 2 / (2 * widths[wider_peak - 1] ** 2))
 
-    plt.figure()
-    plt.plot(wl, spec)
+    return height*spec/max(spec)
 
-    min_ind = np.argmin(spec[btwn])
+def gen_spectrum_twogauss_varyheight(centres, widths, hs, max_allowed_h, wl=None): # center and width in nm
 
-    min_wl = wl[btwn][min_ind]
+    spec = hs[0] * np.exp(-(wl - centres[0]) ** 2 / (2 * widths[0] ** 2)) + \
+           hs[1] * np.exp(-(wl - centres[1]) ** 2 / (2 * widths[1] ** 2))
 
-    spec[wl < min_wl] = height*spec[wl < min_wl]/max(spec[wl < min_wl])
-    spec[wl >= min_wl] = height*spec[wl >= min_wl]/max(spec[wl >= min_wl])
+    return max_allowed_h*spec/max(spec)
 
+def gen_spectrum_onegauss(centres, widths, wl=None, height=1, base=0): # center and width in nm
 
-    plt.plot(wl, spec)
-    plt.show()
+    spec = height*np.exp(-(wl - centres[0]) ** 2 / (2 * widths[0] ** 2))
 
-    return spec, min_wl
+    return spec
 
 #Ref https://scipython.com/blog/converting-a-spectrum-to-a-colour/
 def spec_to_xyz(spec, solar_spec, cmf, interval):

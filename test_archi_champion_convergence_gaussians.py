@@ -1,5 +1,6 @@
 from colour_optimisation import *
-from Spectrum_Function import delta_E_CIE2000, convert_xyY_to_XYZ, convert_xyY_to_Lab, convert_XYZ_to_Lab
+from Spectrum_Function import delta_E_CIE2000, convert_xyY_to_XYZ, convert_xyY_to_Lab, \
+    convert_XYZ_to_Lab, gen_spectrum_twogauss, gen_spectrum_ndip
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
@@ -23,10 +24,9 @@ n_params = 2*n_peaks + n_junctions
 
 interval = 0.1  # interval between each two wavelength points, 0.02 needed for low dE values
 
-#junc_loop = [1,2,3,4]
-junc_loop = [4]
-# n_peak_loop = [2,3,4]
-n_peak_loop = [2,3,4]
+junc_loop = [3,4]
+
+n_peak_loop = [2]
 
 class single_colour_archi:
 
@@ -37,7 +37,7 @@ class single_colour_archi:
 
     def run(self, target, photon_flux, n_peaks=2, n_gaps=1, popsize=80, gen=1000, n_trials=10, w_bounds=None, archi=None):
 
-        p_init = n_dip_colour_function_mobj(n_peaks, n_gaps, target, photon_flux, 1000, self.fix_height, 1, w_bounds)
+        p_init = n_gauss_colour_function_mobj(n_peaks, n_gaps, target, photon_flux, 1000, self.fix_height, 1, w_bounds)
 
         udp = pg.problem(p_init)
         algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=1,
@@ -64,6 +64,11 @@ photon_flux_cell = np.array(LightSource(
 
 photon_flux_colour = photon_flux_cell[:, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)]
 
+# plt.figure()
+# plt.plot(photon_flux_colour[0], gen_spectrum_twogauss(np.array([500, 600]), np.array([15, 15]), photon_flux_colour[0]))
+# plt.plot(photon_flux_colour[0], gen_spectrum_ndip(np.array([500, 600]), np.array([20, 20]), photon_flux_colour[0]))
+# plt.show()
+
 color_names = np.array([
     "DarkSkin", "LightSkin", "BlueSky", "Foliage", "BlueFlower", "BluishGreen",
     "Orange", "PurplishBlue", "ModerateRed", "Purple", "YellowGreen", "OrangeYellow",
@@ -88,6 +93,8 @@ color_Lab = np.array([convert_xyY_to_Lab(x) for x in color_xyY])
 internal_run = single_colour_archi(plot_pareto=False)
 
 colors = sns.color_palette("rocket", n_colors=n_trials)
+
+
 
 if __name__ == "__main__":
 
@@ -215,9 +222,9 @@ if __name__ == "__main__":
                 plt.show()
 
                 champion_pop = np.array([reorder_peaks(x, n_peaks) for x in champion_pop])
-                np.save("results/champion_eff_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_eff)
-                np.save("results/champion_pop_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_pop)
-                np.save("results/niters_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), iters_needed)
+                np.save("results/champion_eff_tcheb_adaptpopsize_gauss" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_eff)
+                np.save("results/champion_pop_tcheb_adaptpopsize_gauss" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_pop)
+                np.save("results/niters_tcheb_adaptpopsize_gauss" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), iters_needed)
 
 
 

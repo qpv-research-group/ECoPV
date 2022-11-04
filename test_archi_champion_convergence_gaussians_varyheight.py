@@ -1,5 +1,6 @@
 from colour_optimisation import *
-from Spectrum_Function import delta_E_CIE2000, convert_xyY_to_XYZ, convert_xyY_to_Lab, convert_XYZ_to_Lab
+from Spectrum_Function import delta_E_CIE2000, convert_xyY_to_XYZ, convert_xyY_to_Lab, \
+    convert_XYZ_to_Lab, gen_spectrum_twogauss, gen_spectrum_ndip
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
@@ -8,61 +9,36 @@ from time import time
 from colour_optimisation import *
 import seaborn as sns
 
-n_peaks = 3
-n_junctions = 1
 col_thresh = 0.004 # for a wavelength interval of 0.1, minimum achievable error will be ~ 0.001
-pop_size = 50
 initial_iters = 100
 add_iters = 100
+
+max_gauss_height = 1
 
 acceptable_eff_change = 1e-4
 
 n_trials = 10
 
-n_params = 2*n_peaks + n_junctions
-
 interval = 0.1  # interval between each two wavelength points, 0.02 needed for low dE values
 
-#junc_loop = [1,2,3,4]
-junc_loop = [4]
-# n_peak_loop = [2,3,4]
-n_peak_loop = [2,3,4]
+junc_loop = [1]
 
-class single_colour_archi:
-
-    def __init__(self, plot_pareto=False, fix_height=True):
-        self.plot_pareto = plot_pareto
-        self.fix_height = fix_height
-        pass
-
-    def run(self, target, photon_flux, n_peaks=2, n_gaps=1, popsize=80, gen=1000, n_trials=10, w_bounds=None, archi=None):
-
-        p_init = n_dip_colour_function_mobj(n_peaks, n_gaps, target, photon_flux, 1000, self.fix_height, 1, w_bounds)
-
-        udp = pg.problem(p_init)
-        algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=1,
-                                     preserve_diversity=True))
-                                     # decomposition="bi"))#, preserve_diversity=True, decomposition="bi"))
-
-        if archi is None: archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
-
-        archi.evolve()
-
-        archi.wait()
-
-        # all_fs = np.stack([archi[j1].get_population().get_f() for j1 in range(n_trials)])
-        # all_xs = np.stack([archi[j1].get_population().get_x() for j1 in range(n_trials)])
-
-        return archi # all_xs, all_fs
-
+n_peak_loop = [2]
 
 wl_cell = np.arange(300, 4000, interval)
+
+cmf = load_cmf(wl_cell)
 
 photon_flux_cell = np.array(LightSource(
     source_type="standard", version="AM1.5g", x=wl_cell, output_units="photon_flux_per_nm"
 ).spectrum(wl_cell))
 
 photon_flux_colour = photon_flux_cell[:, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)]
+
+# plt.figure()
+# plt.plot(photon_flux_colour[0], gen_spectrum_twogauss(np.array([500, 600]), np.array([15, 15]), photon_flux_colour[0]))
+# plt.plot(photon_flux_colour[0], gen_spectrum_ndip(np.array([500, 600]), np.array([20, 20]), photon_flux_colour[0]))
+# plt.show()
 
 color_names = np.array([
     "DarkSkin", "LightSkin", "BlueSky", "Foliage", "BlueFlower", "BluishGreen",
@@ -85,19 +61,47 @@ color_XYZ = np.array([convert_xyY_to_XYZ(x) for x in color_xyY])
 
 color_Lab = np.array([convert_xyY_to_Lab(x) for x in color_xyY])
 
+colors = sns.color_palette("rocket", n_colors=n_trials)
+
+class single_colour_archi:
+
+    def __init__(self, plot_pareto=False, fix_height=True):
+        self.plot_pareto = plot_pareto
+        self.fix_height = fix_height
+        pass
+
+    def run(self, target, photon_flux, n_peaks=2, n_gaps=1, max_height=1, popsize=80, gen=1000, n_trials=10, w_bounds=None, archi=None):
+
+        p_init = n_gauss_colour_function_mobj_varyheight(n_peaks, n_gaps, target, photon_flux, 1000, max_height, w_bounds)
+
+        udp = pg.problem(p_init)
+        algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=1,
+                                     preserve_diversity=True))
+                                     # decomposition="bi"))#, preserve_diversity=True, decomposition="bi"))
+
+        if archi is None: archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
+
+        archi.evolve()
+
+        archi.wait()
+
+        # all_fs = np.stack([archi[j1].get_population().get_f() for j1 in range(n_trials)])
+        # all_xs = np.stack([archi[j1].get_population().get_x() for j1 in range(n_trials)])
+
+        return archi # all_xs, all_fs
+
 internal_run = single_colour_archi(plot_pareto=False)
 
-colors = sns.color_palette("rocket", n_colors=n_trials)
 
 if __name__ == "__main__":
 
     for n_peaks in n_peak_loop:
         for n_junctions in junc_loop:
-            n_params = 2 * n_peaks + n_junctions
+            n_params = 3 * n_peaks + n_junctions
             pop_size = n_params*10
             print(n_peaks, 'peaks,', n_junctions, 'junctions', 'Population size:', pop_size)
 
-            for ntest in [1,2,3,4,5]:
+            for ntest in [1,2]:
 
                 # width_bounds = [None]*len(color_XYZ)
 
@@ -132,7 +136,7 @@ if __name__ == "__main__":
                         iters_needed[k1] += current_iters
 
                         archi = internal_run.run(color_XYZ[k1], photon_flux_cell,
-                                                          n_peaks, n_junctions, pop_size,
+                                                          n_peaks, n_junctions, max_gauss_height, pop_size,
                                                           current_iters, n_trials=n_trials, archi=archipelagos[k1])#,
                                                  # w_bounds=width_bounds[k1])
 
@@ -182,6 +186,21 @@ if __name__ == "__main__":
                                 print("No change/worse champion efficiency")
                                 conv[k1] = True
 
+                                plt.figure()
+                                spec = gen_spectrum_twogauss_varyheight(champion_pop[k1][:2], champion_pop[k1][2:4],
+                                                                        champion_pop[k1][4:6], max_gauss_height,
+                                                                        wl_cell)
+
+                                plt.fill_between(wl_cell, 0, spec, alpha=0.5)
+                                plt.plot(wl_cell, cmf / np.max(cmf))
+                                plt.plot(photon_flux_cell[0], photon_flux_cell[1] / np.max(photon_flux_cell[1]), '-k',
+                                         alpha=0.5)
+
+                                plt.xlim(300, 1000)
+                                plt.title(color_names[k1])
+                                plt.show()
+                                print("Champion pop:", champion_pop[k1])
+
 
                         else:
                             print(color_names[k1], "no acceptable populations")
@@ -215,9 +234,9 @@ if __name__ == "__main__":
                 plt.show()
 
                 champion_pop = np.array([reorder_peaks(x, n_peaks) for x in champion_pop])
-                np.save("results/champion_eff_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_eff)
-                np.save("results/champion_pop_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_pop)
-                np.save("results/niters_tcheb_adaptpopsize" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), iters_needed)
+                np.save("results/champion_eff_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_eff)
+                np.save("results/champion_pop_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_pop)
+                np.save("results/niters_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), iters_needed)
 
 
 
