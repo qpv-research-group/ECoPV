@@ -47,8 +47,7 @@ if __name__ == "__main__": # Need this because otherwise the parallel running of
     champion_effs = np.empty((2, len(color_XYZ)))
     champion_bandgaps = np.empty((2, len(color_XYZ), n_junctions))
 
-    # for n_peaks in n_peak_loop:
-    #     for n_junctions in junc_loop:
+    # Run for the selected peak shape, with both fixed and non-fixed height
     for fixed_height in [True, False]:
         result = multiple_color_cells(color_XYZ, color_names, photon_flux_cell,
                                        n_peaks=n_peaks, n_junctions=n_junctions,

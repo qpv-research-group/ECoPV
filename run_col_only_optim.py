@@ -1,4 +1,4 @@
-from color_cell_optimization import load_babel, single_colour, make_spectrum_ndip, cell_optimization
+from color_cell_optimization import load_babel, single_color, make_spectrum_ndip, cell_optimization
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
@@ -61,7 +61,7 @@ if __name__ == "__main__": # Need this because otherwise the parallel running of
             spec_obj = make_spectrum_ndip(n_peaks=n_peaks, target=target_col, type=type, fixed_height=fixed_height)
             n_params = spec_obj.n_spectrum_params
             pop_size = n_params * 10
-            obj = single_colour(fix_height=fixed_height, spectrum_function=spec_obj.spectrum_function)
+            obj = single_color(fix_height=fixed_height, spectrum_function=spec_obj.spectrum_function)
 
             archi = obj.run(target_col, photon_flux, n_peaks, pop_size, max_trials_col, n_trials,
                     spec_obj.get_bounds())

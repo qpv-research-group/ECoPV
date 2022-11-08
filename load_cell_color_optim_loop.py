@@ -52,8 +52,8 @@ fig, (ax1, ax2) = plt.subplots(2, figsize=(8,7))
 ax1.plot(color_names, single_J_result['eta'], 'k.', mfc='none')
 
 ax2.plot(color_names, single_J_result['Eg'], 'k.', mfc='none')
-ax2.axhline(y=1240/780, alpha=0.5, linestyle='--', color='k')
-ax2.axhline(y=1240/600, alpha=0.5, linestyle='--', color='k')
+ax2.axhline(y=1240/780, alpha=0.5, linestyle='--', color='k') # limit of visible light
+ax2.axhline(y=1240/600, alpha=0.5, linestyle='--', color='k') # peak of longest-wavelength cmf
 
 for i1, n_peaks in enumerate(n_peak_loop):
     for j1, n_junctions in enumerate(n_junc_loop):
