@@ -35,7 +35,7 @@ color_names = [
     "Neutral-6-5", "Neutral-5", "Neutral-3-5", "Black-2"
 ]
 
-single_J_result = pd.read_csv("paper_colours.csv")
+single_J_result = pd.read_csv("paper_colors.csv")
 black_result = single_J_result.loc[single_J_result['Colour'] == 'black 2']
 black_result.loc[23, 'Colour'] = 'black'
 

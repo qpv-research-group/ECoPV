@@ -81,9 +81,7 @@ for n_juncs in [1,2,3,4,5,6]:
     print(np.sort(pop.champion_x))
     print(time() - start)
 
-import matplotlib.pyplot as plt
-
-#
+# import matplotlib.pyplot as plt
 # Egs = np.linspace(0.9, 1.4)
 # Pmax = np.empty_like(Egs)
 # for i1, Eg in enumerate(Egs):

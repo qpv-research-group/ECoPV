@@ -28,7 +28,7 @@ def load_babel(output_coords="XYZ"):
         "Neutral-6-5", "Neutral-5", "Neutral-3-5", "Black-2"
     ])
 
-    single_J_result = pd.read_csv("paper_colours.csv")
+    single_J_result = pd.read_csv("paper_colors.csv")
 
     color_xyY = np.array(single_J_result[['x', 'y', 'Y']])
 
@@ -158,7 +158,11 @@ class make_spectrum_ndip:
         self.n_peaks = n_peaks
 
         if w_bounds is None:
-            self.w_bounds = [1, np.max([50, 160 * target[1]])]
+            if fixed_height:
+                self.w_bounds = [1, np.max([120/n_peaks, (350/n_peaks) * target[1]])]
+
+            else:
+                self.w_bounds = [1, 400]
 
         else:
             self.w_bounds = w_bounds
@@ -227,14 +231,14 @@ def spec_to_xyz(spec, solar_spec, cmf, interval):
 def delta_E_CIE2000(Lab1, Lab2):
     """
     Returns the difference :math:`\Delta E_{ab}` between two given *CIE Lab*
-    *array_like* colours using CIE 2000 recommendation.
+    *array_like* colors using CIE 2000 recommendation.
     Parameters
     ----------
-    Lab1 : array_like, (3,)        *CIE Lab* *array_like* colour 1.
-    Lab2 : array_like, (3,)        *CIE Lab* *array_like* colour 2.
+    Lab1 : array_like, (3,)        *CIE Lab* *array_like* color 1.
+    Lab2 : array_like, (3,)        *CIE Lab* *array_like* color 2.
     Returns
     -------
-    numeric:        Colour difference :math:`\Delta E_{ab}`.
+    numeric:        color difference :math:`\Delta E_{ab}`.
     Ref: Lindbloom, B. (2009). Delta E (CIE 2000). Retrieved February 24,
             2014, from http://brucelindbloom.com/Eqn_DeltaE_CIE2000.html
     """
@@ -317,14 +321,14 @@ def delta_XYZ(target, col):
     return max(dXYZ)
 
 
-def multiple_colour_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junctions=1, type="sharp", fixed_height="True",
+def multiple_color_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junctions=1, type="sharp", fixed_height="True",
                      n_trials=10, initial_iters=100, add_iters=100, col_thresh=0.004, acceptable_eff_change=1e-4,
                      max_trials_col=None, base=0, max_height=1, plot=True):
 
     placeholder_obj = make_spectrum_ndip(n_peaks=n_peaks, type=type, fixed_height=fixed_height)
     n_params = placeholder_obj.n_spectrum_params + n_junctions
     pop_size = n_params * 10
-    print(n_peaks, 'peaks,', n_junctions, 'junctions', 'Population size:', pop_size)
+    # print(n_peaks, 'peaks,', n_junctions, 'junctions', 'Population size:', pop_size)
 
     if max_trials_col is None:
         max_trials_col = 5*initial_iters
@@ -362,7 +366,7 @@ def multiple_colour_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junc
             spectrum_obj = make_spectrum_ndip(n_peaks=n_peaks, target=color_XYZ[k1], type=type,
                                               fixed_height=fixed_height)
 
-            internal_run = single_colour_cell(plot_pareto=False, spectrum_function=spectrum_obj.spectrum_function)
+            internal_run = single_color_cell(plot_pareto=False, spectrum_function=spectrum_obj.spectrum_function)
 
             iters_needed[k1] += current_iters
 
@@ -426,18 +430,19 @@ def multiple_colour_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junc
                         spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
                                                       base=base, max_height=max_height)
                         plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
-                    print("Champion pop:", champion_pop[k1])
+                    print("Champion pop:", champion_pop[k1], "width limits:", spectrum_obj.get_bounds())
 
 
             else:
                 print(color_names[k1], "no acceptable populations", np.min(all_fs[:, :, 0]))
-                if iters_needed[k1] > max_trials_col:
+                if iters_needed[k1] >= max_trials_col:
                     flat_x = all_xs.reshape(-1, all_xs.shape[-1])
                     flat_f = all_fs.reshape(-1, all_fs.shape[-1])
                     best_col = np.argmin(flat_f[:, 0])
                     champion_pop[k1] = flat_x[best_col]
-                    print("Cannot reach target colour - give up. Minimum colour deviation: " + str(
+                    print("Cannot reach target color - give up. Minimum color deviation: " + str(
                         np.round(np.min(flat_f[:, 0]), 5)))
+                    print("Champion pop (best color):", champion_pop[k1], "width limits:", spectrum_obj.get_bounds())
                     conv[k1] = True
 
                     if plot:
@@ -448,10 +453,10 @@ def multiple_colour_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junc
         time_taken = time() - start
 
         color_indices = np.where(~conv)[0]
-        print(len(color_indices), "colour(s) are still above acceptable std. dev. threshold. Took", time_taken, "s")
+        print(len(color_indices), "color(s) are still above acceptable std. dev. threshold. Took", time_taken, "s")
 
         if len(color_indices) == 0:
-            print("All colours are converged")
+            print("All colors are converged")
             all_converged = True
 
         else:
@@ -461,12 +466,12 @@ def multiple_colour_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junc
 
     print("TOTAL TIME:", time() - start_time)
 
-    champion_pop = np.array(reorder_peaks(x, n_peaks, n_junctions, fixed_height) for x in champion_pop)
+    champion_pop = np.array([reorder_peaks(x, n_peaks, n_junctions, fixed_height) for x in champion_pop])
 
     return {"champion_eff": champion_eff, "champion_pop": champion_pop, "archipelagos": archipelagos}
 
 
-class single_colour_cell:
+class single_color_cell:
 
     def __init__(self, plot_pareto=False, fix_height=True, spectrum_function=gen_spectrum_ndip):
         self.plot_pareto = plot_pareto
@@ -477,7 +482,7 @@ class single_colour_cell:
     def run(self, target, photon_flux, n_peaks=2, n_gaps=1, popsize=80, gen=1000,
             n_trials=10, power_in=1000, spectrum_bounds=None, archi=None, **kwargs):
 
-        p_init = colour_function_mobj(n_peaks, n_gaps, target,
+        p_init = color_function_mobj(n_peaks, n_gaps, target,
                                       photon_flux, self.spec_func,
                                       power_in, spectrum_bounds,
                                       **kwargs)
@@ -496,7 +501,7 @@ class single_colour_cell:
         return archi
 
 
-class single_colour:
+class single_color:
 
     def __init__(self, fix_height=True, spectrum_function=gen_spectrum_ndip):
         self.fix_height = fix_height
@@ -506,7 +511,7 @@ class single_colour:
     def run(self, target, photon_flux, n_peaks=2, popsize=80, gen=1000,
             n_trials=10, spectrum_bounds=None, ftol=1e-6, archi=None, **kwargs):
 
-        p_init = colour_optimization(n_peaks, target,
+        p_init = color_optimization(n_peaks, target,
                                       photon_flux, self.spec_func, spectrum_bounds,
                                       **kwargs)
 
@@ -579,7 +584,7 @@ def getPmax(egs, flux, wl, interval, rad_eff=1):
 
     return vTandem * minImax
 
-class colour_function_mobj:
+class color_function_mobj:
     def __init__(self, n_peaks, n_juncs, tg, photon_flux, spec_func=gen_spectrum_ndip, power_in=1000,
                  spectrum_bounds=[], **kwargs):
 
@@ -657,7 +662,7 @@ class colour_function_mobj:
         return bounds
 
     def get_name(self):
-        return "Colour and efficiency optimization function"
+        return "color and efficiency optimization function"
 
     def get_extra_info(self):
         return "\tDimensions: " + str(self.dim)
@@ -666,7 +671,7 @@ class colour_function_mobj:
         return 2
 
 
-class colour_optimization:
+class color_optimization:
     def __init__(self, n_peaks, tg, photon_flux, spec_func=gen_spectrum_ndip,
                  bounds=[], **kwargs):
 
@@ -699,7 +704,7 @@ class colour_optimization:
         return bounds
 
     def get_name(self):
-        return "Colour optimization function"
+        return "Color optimization function"
 
     def get_extra_info(self):
         return "\tDimensions: " + str(self.dim)
