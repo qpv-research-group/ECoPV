@@ -28,7 +28,7 @@ def load_babel(output_coords="XYZ"):
         "Neutral-6-5", "Neutral-5", "Neutral-3-5", "Black-2"
     ])
 
-    single_J_result = pd.read_csv("paper_colors.csv")
+    single_J_result = pd.read_csv("data/paper_colors.csv")
 
     color_xyY = np.array(single_J_result[['x', 'y', 'Y']])
 
@@ -49,7 +49,7 @@ def load_babel(output_coords="XYZ"):
 
 
 def load_cmf(wl):
-    cmf = np.loadtxt('cmf.txt')
+    cmf = np.loadtxt('data/cmf.txt')
     cmf_new = np.zeros((len(wl), 3))  # Interpolating cmf data to be in 1nm intervals
 
     # this could be done in one go

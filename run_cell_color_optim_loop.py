@@ -24,7 +24,8 @@ base = 0 # baseline fixed reflection
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]
 
-n_peak_loop = [1, 2, 3, 4]
+n_peak_loop = [2, 3, 4]
+# run for 1 junc/1 peak but no more junctions.
 
 color_names, color_XYZ = load_babel() # 24 default Babel colors
 # color_names = color_names[:5]
