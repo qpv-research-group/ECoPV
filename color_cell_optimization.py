@@ -430,6 +430,163 @@ def multiple_color_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junct
                         spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
                                                       base=base, max_height=max_height)
                         plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
+                        plt.xlim(300,1000)
+                        plt.show()
+                    print("Champion pop:", champion_pop[k1], "width limits:", spectrum_obj.get_bounds())
+
+
+            else:
+                print(color_names[k1], "no acceptable populations", np.min(all_fs[:, :, 0]))
+                if iters_needed[k1] >= max_trials_col:
+                    flat_x = all_xs.reshape(-1, all_xs.shape[-1])
+                    flat_f = all_fs.reshape(-1, all_fs.shape[-1])
+                    best_col = np.argmin(flat_f[:, 0])
+                    champion_pop[k1] = flat_x[best_col]
+                    print("Cannot reach target color - give up. Minimum color deviation: " + str(
+                        np.round(np.min(flat_f[:, 0]), 5)))
+                    print("Champion pop (best color):", champion_pop[k1], "width limits:", spectrum_obj.get_bounds())
+                    conv[k1] = True
+
+                    if plot:
+                        spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
+                                                      base=base, max_height=max_height)
+                        plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1] + " (target not reached)")
+                        plt.xlim(300, 1000)
+                        plt.show()
+        time_taken = time() - start
+
+        color_indices = np.where(~conv)[0]
+        print(len(color_indices), "color(s) are still above acceptable std. dev. threshold. Took", time_taken, "s")
+
+        if len(color_indices) == 0:
+            print("All colors are converged")
+            all_converged = True
+
+        else:
+            # n_iters = n_iters + 200
+            print("Running for another", add_iters, "iterations")
+            current_iters = add_iters
+
+    print("TOTAL TIME:", time() - start_time)
+
+    champion_pop = np.array([reorder_peaks(x, n_peaks, n_junctions, fixed_height) for x in champion_pop])
+
+    return {"champion_eff": champion_eff, "champion_pop": champion_pop, "archipelagos": archipelagos}
+
+
+def multiple_colors(color_XYZ, color_names, photon_flux, n_peaks=2, type="sharp", fixed_height="True",
+                     n_trials=10, initial_iters=100, add_iters=100, col_thresh=0.004, acceptable_eff_change=1e-4,
+                     max_trials_col=None, base=0, max_height=1, plot=True,
+                     electrical_calc=False, n_junctions=1, photon_flux_cell=None):
+
+    placeholder_obj = make_spectrum_ndip(n_peaks=n_peaks, type=type, fixed_height=fixed_height)
+    n_params = placeholder_obj.n_spectrum_params
+    pop_size = n_params * 10
+    # print(n_peaks, 'peaks,', n_junctions, 'junctions', 'Population size:', pop_size)
+
+    if max_trials_col is None:
+        max_trials_col = 5*initial_iters
+
+    # width_bounds = [None]*len(color_XYZ)
+
+    mean_sd_effs = np.empty((len(color_XYZ), 4))
+
+    all_converged = False
+
+    conv = np.array([False] * len(color_XYZ))
+
+    color_indices = np.arange(len(color_XYZ))
+
+    champion_eff = np.ones(len(color_XYZ))*100
+    champion_pop = np.empty((len(color_XYZ), n_params))
+
+    archipelagos = [None] * len(color_XYZ)
+
+    iters_needed = np.zeros(len(color_XYZ))
+
+    # n_fronts = np.zeros((len(color_XYZ), n_trials))
+
+    current_iters = initial_iters
+
+    start_time = time()
+
+    while not all_converged:
+
+        start = time()
+        print("Add iters:", current_iters)
+
+        for k1 in color_indices:
+
+            spectrum_obj = make_spectrum_ndip(n_peaks=n_peaks, target=color_XYZ[k1], type=type,
+                                              fixed_height=fixed_height)
+
+            internal_run = single_color(spectrum_function=spectrum_obj.spectrum_function)
+
+            iters_needed[k1] += current_iters
+
+            archi = internal_run.run(color_XYZ[k1], photon_flux,
+                                     n_peaks, pop_size,
+                                     current_iters, n_trials=n_trials,
+                                     spectrum_bounds=spectrum_obj.get_bounds(),
+                                     archi=archipelagos[k1],
+                                     base=base,
+                                     max_height=max_height)
+
+            archipelagos[k1] = archi
+
+            all_fs = np.stack([archi[j1].get_population().get_f() for j1 in range(n_trials)])
+            all_xs = np.stack([archi[j1].get_population().get_x() for j1 in range(n_trials)])
+
+            sln = all_fs[:, :, 0] < col_thresh
+
+            # acc_fs = all_fs[sln]
+
+            best_acc_ind = np.array(
+                [np.argmin(x[sln[i1], 1]) if len(x[sln[i1]]) > 0 else 0 for i1, x in enumerate(all_fs)])
+            best_acc_eff = np.array(
+                [np.min(x[sln[i1], 1]) if len(x[sln[i1]]) > 0 else 0 for i1, x in enumerate(all_fs)])
+            best_acc_pop = np.array(
+                [x[sln[i1]][best_acc_ind[i1]] if len(x[sln[i1]]) > 0 else [0] * n_params for i1, x in
+                 enumerate(all_xs)])
+
+            # all_acc_eff = -all_fs[sln, 1] * 100
+
+            # plt.scatter([color_names[k1]]*n_trials, best_acc_eff * 100, color=colors, facecolors='none')
+
+            max_eff_acc = best_acc_eff[best_acc_eff > 0] * 100
+            best_acc_pop = best_acc_pop[best_acc_eff > 0]
+
+            print(np.max(all_fs[:,1]), np.min(all_fs[:,1]))
+
+            if len(max_eff_acc) > 0:
+
+                print(color_names[k1], np.round(np.max(max_eff_acc), 3),
+                      np.round(np.mean(max_eff_acc), 3), np.round(np.std(max_eff_acc), 6))
+
+                ch_eff = np.max(max_eff_acc)
+                ch_eff_ind = np.argmax(max_eff_acc)
+
+                ch_pop = best_acc_pop[ch_eff_ind]
+                # if not hasattr(ch_pop, "shape"):
+                #     print("weird population", ch_eff, ch_eff_ind, max_eff_acc, best_acc_pop)
+                mean_sd_effs[k1] = [np.min(max_eff_acc), ch_eff, np.mean(max_eff_acc), np.std(max_eff_acc)]
+
+                delta_eta = champion_eff[k1] - ch_eff
+                print(champion_eff[k1], ch_eff)
+
+                if delta_eta >= acceptable_eff_change:
+                    champion_eff[k1] = ch_eff
+                    champion_pop[k1] = ch_pop
+                    print(np.round(delta_eta, 5), "delta eff - New champion efficiency")
+
+                else:
+                    print("No change/worse champion efficiency")
+                    conv[k1] = True
+
+                    if plot:
+                        spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
+                                                      base=base, max_height=max_height)
+                        plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
                     print("Champion pop:", champion_pop[k1], "width limits:", spectrum_obj.get_bounds())
 
 
@@ -466,9 +623,35 @@ def multiple_color_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junct
 
     print("TOTAL TIME:", time() - start_time)
 
-    champion_pop = np.array([reorder_peaks(x, n_peaks, n_junctions, fixed_height) for x in champion_pop])
+    # champion_pop = np.array([reorder_peaks(x, n_peaks, 0, fixed_height) for x in champion_pop])
 
-    return {"champion_eff": champion_eff, "champion_pop": champion_pop, "archipelagos": archipelagos}
+    if electrical_calc:
+
+        eta_max = np.empty(len(color_XYZ))
+        pop_max = np.empty((len(color_XYZ), n_junctions))
+
+        for k1 in range(len(color_XYZ)):
+            spec = placeholder_obj.spectrum_function(champion_pop[k1], n_peaks, photon_flux_cell[0],
+                                          base=base, max_height=max_height)
+
+            print(champion_pop[k1], np.max(spec))
+
+            p_init = cell_optimization(n_junctions,
+                                       [photon_flux_cell[0], (1-spec)*photon_flux_cell[1]],
+                                       eta_ext=1)
+
+            prob = pg.problem(p_init)
+            algo = pg.algorithm(pg.de(gen=1000, F=1, CR=1))
+
+            pop = pg.population(prob, 20 * n_junctions)
+            pop = algo.evolve(pop)
+
+            eta_max[k1] = -pop.champion_f*100
+            pop_max[k1] = pop.champion_x
+
+
+    return {"champion_eff": champion_eff, "champion_pop": champion_pop, "archipelagos": archipelagos,
+            "eta_max": eta_max, "pop_max": pop_max}
 
 
 class single_color_cell:
@@ -509,14 +692,24 @@ class single_color:
         pass
 
     def run(self, target, photon_flux, n_peaks=2, popsize=80, gen=1000,
-            n_trials=10, spectrum_bounds=None, ftol=1e-6, archi=None, **kwargs):
+            n_trials=10, spectrum_bounds=None,
+            # ftol=1e-6,
+            archi=None, **kwargs):
 
-        p_init = color_optimization(n_peaks, target,
-                                      photon_flux, self.spec_func, spectrum_bounds,
-                                      **kwargs)
+        # p_init = color_optimization(n_peaks, target,
+        #                               photon_flux, self.spec_func, spectrum_bounds,
+        #                               **kwargs)
+        #
+        # udp = pg.problem(p_init)
+        # algo = pg.algorithm(pg.de(gen=gen, CR=1, F=1, ftol=ftol))
+
+        p_init = color_optimization_min_photons(n_peaks, target,
+                                    photon_flux, self.spec_func, spectrum_bounds,
+                                    **kwargs)
 
         udp = pg.problem(p_init)
-        algo = pg.algorithm(pg.de(gen=gen, CR=1, F=1, ftol=ftol))
+        algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=1,
+                                     preserve_diversity=True))
 
         if archi is None: archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
 
@@ -712,6 +905,51 @@ class color_optimization:
     def get_nobj(self):
         return 1
 
+class color_optimization_min_photons:
+    def __init__(self, n_peaks, tg, photon_flux, spec_func=gen_spectrum_ndip,
+                 bounds=[], **kwargs):
+
+        self.n_peaks = n_peaks
+        self.target_color = tg
+        self.spec_func = spec_func
+        self.dim = len(bounds[0])
+        self.bounds_passed = bounds
+
+        self.col_wl = photon_flux[0]
+        self.solar_spec = photon_flux[1]
+        self.interval = np.round(np.diff(self.col_wl)[0], 6)
+        self.cmf = load_cmf(self.col_wl)
+        self.add_args = kwargs
+        self.avg_flux = np.mean(self.solar_spec)
+
+    def fitness(self, x):
+
+        R_spec = self.spec_func(x, self.n_peaks, wl=self.col_wl, **self.add_args)
+
+        XYZ = np.array(spec_to_xyz(R_spec, self.solar_spec, self.cmf, self.interval))
+        delta = delta_XYZ(self.target_color, XYZ)
+
+        n_reflected = np.mean(R_spec*self.solar_spec)/self.avg_flux
+
+        # print(self.target_color, XYZ, delta, n_reflected)
+
+        return [delta, n_reflected]
+
+    def get_bounds(self):
+
+        bounds = (self.bounds_passed[0],
+                self.bounds_passed[1])
+
+        return bounds
+
+    def get_name(self):
+        return "Color optimization function"
+
+    def get_extra_info(self):
+        return "\tDimensions: " + str(self.dim)
+
+    def get_nobj(self):
+        return 2
 
 class cell_optimization:
     def __init__(self, n_juncs, photon_flux, power_in=1000, eta_ext=1):
@@ -767,7 +1005,7 @@ class cell_optimization:
         return 1
 
 
-def plot_outcome(spec, photon_flux_cell, target, name):
+def plot_outcome(spec, photon_flux_cell, target, name, Egs=None, ax=None):
 
     cmf = load_cmf(photon_flux_cell[0])
     interval = np.round(np.diff(photon_flux_cell[0])[0], 6)
@@ -778,27 +1016,34 @@ def plot_outcome(spec, photon_flux_cell, target, name):
     color_srgb_f = convert_color(color_xyz_f, sRGBColor)
     color_srgb_t = convert_color(color_xyz_t, sRGBColor)
 
-    fig, ax = plt.subplots()
+    color_srgb_f = [color_srgb_f.clamped_rgb_r, color_srgb_f.clamped_rgb_g, color_srgb_f.clamped_rgb_b]
+    color_srgb_t = [color_srgb_t.clamped_rgb_r, color_srgb_t.clamped_rgb_g, color_srgb_t.clamped_rgb_b]
+
+
+    if ax is None: fig, ax = plt.subplots()
     ax.set_prop_cycle(color=['red', 'green', 'blue'])
-    plt.fill_between(photon_flux_cell[0], 1, 1 - spec, color='black', alpha=0.3)
-    plt.plot(photon_flux_cell[0], cmf / np.max(cmf))
-    plt.plot(photon_flux_cell[0], photon_flux_cell[1] / np.max(photon_flux_cell[1]), '-k',
+    ax.fill_between(photon_flux_cell[0], 1, 1 - spec, color='black', alpha=0.3)
+    ax.plot(photon_flux_cell[0], cmf / np.max(cmf))
+    ax.plot(photon_flux_cell[0], photon_flux_cell[1] / np.max(photon_flux_cell[1]), '-k',
              alpha=0.5)
 
-    plt.xlim(300, 1000)
-    plt.title(name)
+    # plt.xlim(300, 1000)
+    ax.set_title(name)
 
     ax.add_patch(
         Rectangle(xy=(800, 0.4), width=100,
                   height=0.1,
-                  facecolor=color_srgb_t.get_value_tuple())
+                  facecolor=color_srgb_t)
     )
 
     ax.add_patch(
         Rectangle(xy=(800, 0.3), width=100,
                   height=0.1,
-                  facecolor=color_srgb_f.get_value_tuple())
+                  facecolor=color_srgb_f)
     )
 
-    plt.tight_layout()
-    plt.show()
+    if Egs is not None:
+        for Eg in Egs:
+            ax.axvline(x=1240/Eg)
+
+    return ax
