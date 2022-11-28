@@ -1,5 +1,5 @@
 import numpy as np
-from colour_optimisation import getPmax
+from color_cell_optimization import getPmax
 import pygmo as pg
 from solcore.light_source import LightSource
 from time import time
@@ -66,11 +66,11 @@ photon_flux = np.array(LightSource(
     source_type="standard", version="AM1.5g", x=wl_cell, output_units="photon_flux_per_nm"
 ).spectrum(wl_cell))
 
-for n_juncs in [1,2,3,4,5,6]:
+for n_juncs in [1,2,3]:
     start = time()
     print(n_juncs, "Junctions")
 
-    p_init = black_cell_optim(n_juncs, photon_flux, eta_ext=0.1)
+    p_init = black_cell_optim(n_juncs, photon_flux, eta_ext=1)
 
     prob = pg.problem(p_init)
     algo = pg.algorithm(pg.de(gen=1000, F=1, CR=1, ))

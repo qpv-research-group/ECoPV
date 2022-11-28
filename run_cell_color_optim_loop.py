@@ -3,34 +3,38 @@ import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
 
-col_thresh = 0.004 # for a wavelength interval of 0.1, minimum achievable color error will be ~ 0.001. Fractional error in X, Y, Z.
-acceptable_eff_change = 1e-4 # how much can the efficiency (in %) change between iteration sets?
-n_trials = 8 # number of islands which will run concurrently
+col_thresh = 0.004 # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
+# This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
+
+acceptable_eff_change = 1e-4 # how much can the efficiency (in %) change between iteration sets? Stop when have reached
+# col_thresh and efficiency change is less than this.
+
+n_trials = 10 # number of islands which will run concurrently
 interval = 0.1 # wavelength interval (in nm)
-wl_cell = np.arange(300, 4000, interval) # wavelengths
+wl_cell = np.arange(300, 4000, interval) # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
+# spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
 initial_iters = 100 # number of initial evolutions for the archipelago
 add_iters = 100 # additional evolutions added each time if color threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
-max_trials_col = 3*add_iters # how many population evolutions happen before giving up if there are no populations
-                            # which meet the color threshold
+max_trials_col = 3*add_iters  # how many population evolutions happen before giving up if there are no populations
+                              # which meet the color threshold
 
 type = "sharp" # "sharp" for rectangular dips or "gauss" for gaussians
-fixed_height = False # fixed height peaks (will be at the value of max_height) or not
+fixed_height = True # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
+# variable if False
 
-max_height = 1 # maximum height of reflection peaks
-base = 0 # baseline fixed reflection
+max_height = 1 # maximum height of reflection peaks; fixed at this value of fixed_height = True
+base = 0 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [1, 2, 3, 4, 5, 6]
+n_junc_loop = [1, 2, 3, 4, 5, 6] # loop through these numbers of junctions
 
-n_peak_loop = [2, 3, 4]
-# run for 1 junc/1 peak but no more junctions.
+n_peak_loop = [2, 3, 4] # loop through these numbers of reflection peaks
 
-color_names, color_XYZ = load_babel() # 24 default Babel colors
-# color_names = color_names[:5]
-# color_XYZ = color_XYZ[:5]
+color_names, color_XYZ = load_babel() # load the names and XYZ coordinates of the 24 default Babel colors
 
+# Use AM1.5G spectrum:
 photon_flux_cell = np.array(LightSource(
     source_type="standard", version="AM1.5g", x=wl_cell, output_units="photon_flux_per_nm"
 ).spectrum(wl_cell))
@@ -42,7 +46,7 @@ shapes = ['+', 'o', '^', '.', '*', "v", "s", "x"]
 loop_n = 0
 
 if __name__ == "__main__":
-# Need this because otherwise the parallel running of the different islands (n_trials) may throw an error
+# Need this __main__ construction because otherwise the parallel running of the different islands (n_trials) may throw an error
 
     for n_peaks in n_peak_loop:
         for n_junctions in n_junc_loop:
