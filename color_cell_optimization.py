@@ -19,6 +19,7 @@ e = np.exp(1)
 T = 298
 kbT = k*T
 pref = ((2*np.pi* q)/(h_eV**3 * c**2))* kbT
+hc = h*c
 
 def load_babel(output_coords="XYZ"):
     color_names = np.array([
@@ -435,7 +436,7 @@ def multiple_color_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junct
                     spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
                                                   base=base, max_height=max_height)
 
-                    color_XYZ_found[k1] = spec_to_XYZ(spec, h*c*photon_flux[1]/(photon_flux[0]*1e-9), cmf, interval)
+                    color_XYZ_found[k1] = spec_to_XYZ(spec, hc*photon_flux[1]/(photon_flux[0]*1e-9), cmf, interval)
 
                     if plot:
                         spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
@@ -468,7 +469,7 @@ def multiple_color_cells(color_XYZ, color_names, photon_flux, n_peaks=2, n_junct
                     if plot:
                         spec = internal_run.spec_func(champion_pop[k1], n_peaks, photon_flux[0],
                                                       base=base, max_height=max_height)
-                        plot_outcome(spec, h*c*photon_flux, color_XYZ[k1], color_names[k1] + " (target not reached)")
+                        plot_outcome(spec, hc*photon_flux, color_XYZ[k1], color_names[k1] + " (target not reached)")
                         plt.xlim(300, 1000)
                         plt.show()
 
@@ -794,15 +795,15 @@ def reorder_peaks(pop, n_peaks, n_junctions, fixed_height=True):
         return np.hstack((peaks, sorted_widths,  sorted_heights, bandgaps))
 
 
-def XYZ_from_pop_dips(pop, n_peaks, inc_spec, interval):
+def XYZ_from_pop_dips(pop, n_peaks, photon_flux, interval):
     cs = pop[:n_peaks]
     ws = pop[n_peaks:2*n_peaks]
 
-    cmf = load_cmf(inc_spec[0])
+    cmf = load_cmf(photon_flux[0])
     # T = 298
 
-    R_spec = gen_spectrum_ndip(cs, ws, wl=inc_spec[0])
-    XYZ = np.array(spec_to_XYZ(R_spec, inc_spec[1], cmf, interval))
+    R_spec = gen_spectrum_ndip(cs, ws, wl=photon_flux[0])
+    XYZ = np.array(spec_to_XYZ(R_spec, hc*photon_flux[1]/(photon_flux[0]*1e-9), cmf, interval))
 
     return XYZ
 
@@ -905,7 +906,7 @@ class color_function_mobj:
         self.cell_wl = photon_flux[0]
         self.col_wl = self.cell_wl[np.all([self.cell_wl >= self.c_bounds[0], self.cell_wl <= self.c_bounds[1]], axis=0)]
         self.solar_flux = photon_flux[1]
-        self.solar_spec = h*c*self.solar_flux[np.all([self.cell_wl >= 380, self.cell_wl <= 780], axis=0)]/(self.col_wl*1e-9)
+        self.solar_spec = hc*self.solar_flux[np.all([self.cell_wl >= 380, self.cell_wl <= 780], axis=0)]/(self.col_wl*1e-9)
         self.incident_power = power_in
         self.interval = np.round(np.diff(self.cell_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
@@ -985,7 +986,7 @@ class color_optimization:
         self.dim = n_peaks*2
 
         self.col_wl = photon_flux[0]
-        self.solar_spec = h * c * photon_flux[1] / (
+        self.solar_spec = hc * photon_flux[1] / (
                     self.col_wl * 1e-9)
         self.interval = np.round(np.diff(self.col_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
@@ -1024,7 +1025,7 @@ class color_optimization_min_photons:
         self.bounds_passed = bounds
 
         self.col_wl = photon_flux[0]
-        self.solar_spec = photon_flux[1]
+        self.solar_spec = hc*photon_flux[1]/(photon_flux[0]*1e-9)
         self.interval = np.round(np.diff(self.col_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
         self.add_args = kwargs
@@ -1124,7 +1125,7 @@ def plot_outcome(spec, photon_flux_cell, target, name, Egs=None, ax=None):
     cmf = load_cmf(photon_flux_cell[0])
     interval = np.round(np.diff(photon_flux_cell[0])[0], 6)
 
-    found_xyz = spec_to_XYZ(spec, h*c*photon_flux_cell[1]/(photon_flux_cell[0]*1e-9), cmf, interval)
+    found_xyz = spec_to_XYZ(spec, hc*photon_flux_cell[1]/(photon_flux_cell[0]*1e-9), cmf, interval)
     color_xyz_f = XYZColor(*found_xyz)
     color_xyz_t = XYZColor(*target)
     color_srgb_f = convert_color(color_xyz_f, sRGBColor)
