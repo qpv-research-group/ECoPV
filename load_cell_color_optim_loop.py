@@ -1,4 +1,4 @@
-from color_cell_optimization import load_babel, make_spectrum_ndip, load_cmf, spec_to_xyz
+from color_cell_optimization import load_babel, make_spectrum_ndip, load_cmf, spec_to_XYZ
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
 
@@ -32,7 +32,7 @@ fixed_height = False # fixed height peaks (will be at the value of max_height) o
 max_height = 1 # maximum height of reflection peaks
 base = 0 # baseline fixed reflection
 
-n_junc_loop = [1, 2, 3, 4, 5, 6]
+n_junc_loop = [6]
 
 n_peak_loop = [2,3 ,4]
 # also run for 1 junc/1 peak but no more junctions.
@@ -94,7 +94,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                          label=n_junctions,
                          )
 
-            ax1.plot('Black', black_cell_eff[j1], 'x', mfc='none', linestyle='none',
+            ax1.plot('Black', black_cell_eff[n_junctions-1], 'x', mfc='none', linestyle='none',
                      color=cols[j1])
 
             ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
@@ -112,7 +112,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                          color=cols[j1], marker=shapes[i1], alpha=alphas[k1])
 
 
-            ax2.plot(['Black']*len(black_cell_Eg[j1]), black_cell_Eg[j1], 'x', mfc='none', linestyle='none',
+            ax2.plot(['Black']*len(black_cell_Eg[n_junctions-1]), black_cell_Eg[n_junctions-1], 'x', mfc='none', linestyle='none',
                      color=cols[j1])
             ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
             # plt.legend(title="Fixed h:")
@@ -183,7 +183,7 @@ plt.show()
 #                 spec = placeholder_obj.spectrum_function(champion_pops[l1], n_peaks,
 #                                                          photon_flux_cell[0], max_height, base)
 #
-#                 found_xyz = spec_to_xyz(spec, photon_flux_cell[1], cmf, interval)
+#                 found_xyz = spec_to_XYZ(spec, photon_flux_cell[1], cmf, interval)
 #                 color_xyz_f = XYZColor(*found_xyz)
 #                 color_xyz_t = XYZColor(*target)
 #                 color_srgb_f = convert_color(color_xyz_f, sRGBColor)
@@ -218,18 +218,18 @@ params = {"axes.prop_cycle": cols}
 plt.rcParams.update(params)
 
 type = "sharp"
-fixed_height = True
+fixed_height_loop = [True, False]
 max_height = 1
 base = 0
 
 patch_width = 0.75
-n_junc_loop = [4]
+n_junc_loop = [2]
 
-n_peak_loop = [2, 3, 4]
+n_peak_loop = [2]
 
 data_width = 0.6
 
-offset = np.linspace(0, data_width, len(n_peak_loop))
+offset = np.linspace(0, data_width, 3)
 # also run for 1 junc/1 peak but no more junctions.
 
 alphas = [1, 0.5]
@@ -239,18 +239,20 @@ fig, axes = plt.subplots(2,2, gridspec_kw={'height_ratios':[1,2],
                                            'wspace': 0.05},
                          figsize=(8, 5))
 
+offset_ind = 0
+
 for j1, n_junctions in enumerate(n_junc_loop):
-    for l1, target in enumerate(color_XYZ):
 
 
-        for i1, n_peaks in enumerate(n_peak_loop):
-            for k1, fixed_height in enumerate([True]):
+    for i1, n_peaks in enumerate(n_peak_loop):
+        for k1, fixed_height in enumerate(fixed_height_loop):
+            for l1, target in enumerate(color_XYZ):
 
                 placeholder_obj = make_spectrum_ndip(n_peaks=n_peaks, type=type, fixed_height=fixed_height)
 
-                champion_effs = np.loadtxt("results/champion_eff_tcheb_" + type + str(n_peaks) + '_' + str(
+                champion_effs = np.loadtxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
-                champion_pops = np.loadtxt("results/champion_pop_tcheb_" + type + str(n_peaks) + '_' + str(
+                champion_pops = np.loadtxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
                 # final_populations = np.load("results/final_pop_tcheb_" + type + str(n_peaks) + '_' + str(
                 #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', allow_pickle=True)
@@ -261,16 +263,16 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 centres = champion_pops[l1][:n_peaks]
                 widths = champion_pops[l1][n_peaks:2 * n_peaks]
 
-                found_xyz = spec_to_xyz(spec, photon_flux_cell[1], cmf, interval)
+                found_xyz = spec_to_XYZ(spec, photon_flux_cell[1], cmf, interval)
                 color_xyz_f = XYZColor(*found_xyz)
                 color_xyz_t = XYZColor(*target)
                 color_srgb_f = convert_color(color_xyz_f, sRGBColor)
                 color_srgb_t = convert_color(color_xyz_t, sRGBColor).get_value_tuple()
 
-                axes[0,0].plot(l1+offset[i1]-data_width/2, champion_effs[l1], '.', color=colors[i1],
+                axes[0,0].plot(l1+offset[offset_ind]-data_width/2, champion_effs[l1], '.', color=colors[offset_ind],
                              markersize=4)
-                axes[1,0].errorbar([l1+offset[i1]-data_width/2]*len(centres), centres, yerr=widths/2,fmt='none',
-                            ecolor=colors[i1])
+                axes[1,0].errorbar([l1+offset[offset_ind]-data_width/2]*len(centres), centres, yerr=widths/2,fmt='none',
+                            ecolor=colors[offset_ind])
 
                 axes[1,0].add_patch(
                     Rectangle(xy=(l1-patch_width/2, 370), width=patch_width,
@@ -278,7 +280,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
                               facecolor=color_srgb_t)
                 )
 
-                # plt.xlim(300, 1000)
+            offset_ind += 1
+
 
 axes[0,0].set_xticks(np.arange(0, len(color_XYZ)))
 axes[0,0].set_xticklabels([])
@@ -307,8 +310,8 @@ axes[1,1].set_xlabel(r"Spectral sensitivity / "
            "\n" 
            r"Normalised photon flux")
 axes[0,1].plot(0,0, color=colors[0], label='2 peaks')
-axes[0,1].plot(0,0, color=colors[1], label='3 peaks')
-axes[0,1].plot(0,0, color=colors[2], label='4 peaks')
+# axes[0,1].plot(0,0, color=colors[1], label='3 peaks')
+# axes[0,1].plot(0,0, color=colors[2], label='4 peaks')
 axes[0,1].legend(frameon=False, loc='center')
 plt.subplots_adjust(bottom=0.25, top=0.95, left=0.1, right=0.97)
 plt.tight_layout()

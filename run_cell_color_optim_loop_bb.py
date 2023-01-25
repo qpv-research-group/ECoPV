@@ -26,20 +26,22 @@ max_trials_col = 3*add_iters  # how many population evolutions happen before giv
 type = "sharp" # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
-light_source_name = "AM1.5g"
+light_source_name = "bb"
 
 max_height = 1 # maximum height of reflection peaks; fixed at this value of fixed_height = True
 base = 0 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [5] # loop through these numbers of junctions
+n_junc_loop = [1, 2, 3, 4, 5, 6] # loop through these numbers of junctions
 
-n_peak_loop = [2,3,4] # loop through these numbers of reflection peaks
+n_peak_loop = [2] # loop through these numbers of reflection peaks
+
+fixed_height_loop = [True]
 
 color_names, color_XYZ = load_babel() # load the names and XYZ coordinates of the 24 default Babel colors
 
 # Use AM1.5G spectrum:
 light_source = LightSource(
-    source_type="standard", version=light_source_name, x=wl_cell, output_units="photon_flux_per_nm")
+    source_type="black body", x=wl_cell, output_units="photon_flux_per_nm", entendue="Sun", T=5778)
 
 photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
@@ -61,7 +63,7 @@ for n_junctions in n_junc_loop:
         p_init = cell_optimization(n_junctions, photon_flux_cell, power_in=light_source.power_density, eta_ext=1)
 
         prob = pg.problem(p_init)
-        algo = pg.algorithm(pg.de(gen=1000, F=1, CR=1, ))
+        algo = pg.algorithm(pg.de(gen=2000, F=1, CR=1, ))
 
         pop = pg.population(prob, 20*n_junctions)
         pop = algo.evolve(pop)
@@ -79,48 +81,34 @@ if __name__ == "__main__":
             Eg_guess = np.loadtxt(save_path + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name),
                                   ndmin=1)
 
-            for fixed_height in [True, False]:
-                print(n_peaks, "peaks,", n_junctions, "junctions,", "fixed height:", fixed_height)
-                result = multiple_color_cells(color_XYZ, color_names, photon_flux_cell,
-                                               n_peaks=n_peaks, n_junctions=n_junctions,
-                                          type=type, fixed_height=fixed_height,
-                                          n_trials=n_trials, initial_iters=initial_iters, add_iters=add_iters,
-                                          col_thresh=col_thresh, acceptable_eff_change=acceptable_eff_change,
-                                          max_trials_col=max_trials_col, base=base, max_height=max_height,
-                                            Eg_black=Eg_guess,
-                                          plot=False)
+            for fixed_height in fixed_height_loop:
+                save_name = "results/champion_eff_" + type + str(n_peaks) + '_' + str(
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(
+                    base) + light_source_name + '_spd.txt'
 
-                champion_effs = result["champion_eff"]
-                champion_pops = result["champion_pop"]
+                if not path.exists(save_name):
+                    print(n_peaks, "peaks,", n_junctions, "junctions,", "fixed height:", fixed_height)
+                    result = multiple_color_cells(color_XYZ, color_names, photon_flux_cell,
+                                                   n_peaks=n_peaks, n_junctions=n_junctions,
+                                              type=type, fixed_height=fixed_height,
+                                              n_trials=n_trials, initial_iters=initial_iters, add_iters=add_iters,
+                                              col_thresh=col_thresh, acceptable_eff_change=acceptable_eff_change,
+                                              max_trials_col=max_trials_col, base=base, max_height=max_height,
+                                                Eg_black=Eg_guess, power_in=light_source.power_density,
+                                              plot=False)
 
-                final_populations = result["archipelagos"]
+                    champion_effs = result["champion_eff"]
+                    champion_pops = result["champion_pop"]
 
-                np.savetxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.txt', champion_effs)
-                np.savetxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) +'.txt', champion_pops)
-                np.save("results/final_pop_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', final_populations)
+                    final_populations = result["archipelagos"]
 
-            # plt.figure()
-            # plt.plot(color_names, champion_effs[0], marker=shapes[0], mfc='none', linestyle='none', label="Fixed")
-            # plt.plot(color_names, champion_effs[1], marker=shapes[1], mfc='none', linestyle='none', label="Not fixed")
-            #
-            # plt.xticks(rotation=45)
-            # plt.legend()
-            # plt.ylabel("Efficiency (%)")
-            # # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
-            # plt.tight_layout()
-            # plt.show()
-            #
-            # plt.figure()
-            # plt.plot(color_names, champion_bandgaps[0], marker=shapes[0], mfc='none', linestyle='none', label="Fixed")
-            # plt.plot(color_names, champion_bandgaps[1], marker=shapes[1], mfc='none', linestyle='none', label="Not fixed")
-            #
-            # plt.xticks(rotation=45)
-            # plt.legend()
-            # plt.ylabel("Bandgap (eV)")
-            # # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
-            # plt.tight_layout()
-            # plt.show()
+                    np.savetxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
+                        n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + light_source_name + '_spd.txt', champion_effs)
+                    np.savetxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
+                        n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + light_source_name + '_spd.txt', champion_pops)
+                    np.save("results/final_pop_" + type + str(n_peaks) + '_' + str(
+                        n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + light_source_name + '_spd.npy', final_populations)
+
+                else:
+                    print("Existing saved result found")
 

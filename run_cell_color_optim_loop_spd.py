@@ -4,6 +4,9 @@ from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
 import pygmo as pg
 from os import path
+import pandas as pd
+
+force_rerun = True
 
 col_thresh = 0.004 # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
@@ -15,6 +18,10 @@ n_trials = 10 # number of islands which will run concurrently
 interval = 0.1 # wavelength interval (in nm)
 wl_cell = np.arange(300, 4000, interval) # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
 # spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
+
+
+single_J_result = pd.read_csv("data/paper_colors.csv")
+
 
 initial_iters = 100 # number of initial evolutions for the archipelago
 add_iters = 100 # additional evolutions added each time if color threshold/convergence condition not met
@@ -31,7 +38,7 @@ light_source_name = "AM1.5g"
 max_height = 1 # maximum height of reflection peaks; fixed at this value of fixed_height = True
 base = 0 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [5] # loop through these numbers of junctions
+n_junc_loop = [1,2,3,4,5,6] # loop through these numbers of junctions
 
 n_peak_loop = [2,3,4] # loop through these numbers of reflection peaks
 
@@ -54,7 +61,7 @@ save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 for n_junctions in n_junc_loop:
 
-    save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name)
+    save_loc = save_path + "/champion_pop_{}juncs_{}spec_spd.txt".format(n_junctions, light_source_name)
 
     if not path.exists(save_loc):
 
@@ -68,7 +75,7 @@ for n_junctions in n_junc_loop:
 
         champion_pop = np.sort(pop.champion_x)
 
-        np.savetxt(save_path + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name), champion_pop)
+        np.savetxt(save_path + "/champion_pop_{}juncs_{}spec_spd.txt".format(n_junctions, light_source_name), champion_pop)
 
 
 if __name__ == "__main__":
@@ -76,10 +83,18 @@ if __name__ == "__main__":
 
     for n_peaks in n_peak_loop:
         for n_junctions in n_junc_loop:
-            Eg_guess = np.loadtxt(save_path + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name),
+            champion_bandgaps = np.zeros((len(color_names), n_junctions))
+
+            Eg_guess = np.loadtxt(save_path + "/champion_pop_{}juncs_{}spec_spd.txt".format(n_junctions, light_source_name),
                                   ndmin=1)
 
-            for fixed_height in [True, False]:
+
+
+            save_loc = "results/champion_eff_" + type + str(n_peaks) + '_' + str(
+                n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'_spd.txt'
+
+            if not path.exists(save_loc) or force_rerun:
+
                 print(n_peaks, "peaks,", n_junctions, "junctions,", "fixed height:", fixed_height)
                 result = multiple_color_cells(color_XYZ, color_names, photon_flux_cell,
                                                n_peaks=n_peaks, n_junctions=n_junctions,
@@ -92,35 +107,51 @@ if __name__ == "__main__":
 
                 champion_effs = result["champion_eff"]
                 champion_pops = result["champion_pop"]
+                champion_bandgaps = champion_pops[:, -n_junctions:]
 
                 final_populations = result["archipelagos"]
 
                 np.savetxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.txt', champion_effs)
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'_spd.txt', champion_effs)
                 np.savetxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) +'.txt', champion_pops)
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) +'_spd.txt', champion_pops)
                 np.save("results/final_pop_" + type + str(n_peaks) + '_' + str(
-                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', final_populations)
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'_spd.npy', final_populations)
 
-            # plt.figure()
-            # plt.plot(color_names, champion_effs[0], marker=shapes[0], mfc='none', linestyle='none', label="Fixed")
-            # plt.plot(color_names, champion_effs[1], marker=shapes[1], mfc='none', linestyle='none', label="Not fixed")
-            #
-            # plt.xticks(rotation=45)
-            # plt.legend()
-            # plt.ylabel("Efficiency (%)")
-            # # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
-            # plt.tight_layout()
-            # plt.show()
-            #
-            # plt.figure()
-            # plt.plot(color_names, champion_bandgaps[0], marker=shapes[0], mfc='none', linestyle='none', label="Fixed")
-            # plt.plot(color_names, champion_bandgaps[1], marker=shapes[1], mfc='none', linestyle='none', label="Not fixed")
-            #
-            # plt.xticks(rotation=45)
-            # plt.legend()
-            # plt.ylabel("Bandgap (eV)")
-            # # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
-            # plt.tight_layout()
-            # plt.show()
+            else:
+
+                champion_effs = np.loadtxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '_spd.txt')
+                champion_pops = np.loadtxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '_spd.txt')
+                champion_bandgaps = champion_pops[:, -n_junctions:]
+
+                champion_effs_old = np.loadtxt("results/champion_eff_" + type + str(n_peaks) + '_' + str(
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
+                champion_pops_old = np.loadtxt("results/champion_pop_" + type + str(n_peaks) + '_' + str(
+                    n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
+                champion_bandgaps_old = champion_pops_old[:, -n_junctions:]
+
+            plt.figure()
+            plt.plot(color_names, champion_effs, marker=shapes[0], mfc='none', linestyle='none', label="Power density")
+            plt.plot(color_names, champion_effs_old, 'x', mfc='none', linestyle='none', label="Photon flux")
+            plt.plot(color_names, single_J_result['eta'], 'o', mfc='none', label='1J result')
+
+            plt.xticks(rotation=45)
+            plt.legend()
+            plt.ylabel("Efficiency (%)")
+            # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
+            plt.tight_layout()
+            plt.show()
+
+            plt.figure()
+            plt.plot(color_names, champion_bandgaps, marker=shapes[0], mfc='none', linestyle='none', label="Power density")
+            plt.plot(color_names, champion_bandgaps_old, marker='x', mfc='none', linestyle='none', label="Photon flux")
+            plt.plot(color_names, single_J_result['Eg'], 'o', mfc='none', label='1J result')
+            plt.xticks(rotation=45)
+            plt.legend()
+            plt.ylabel("Bandgap (eV)")
+            # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
+            plt.tight_layout()
+            plt.show()
 

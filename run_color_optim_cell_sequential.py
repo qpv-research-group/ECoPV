@@ -18,6 +18,7 @@ max_trials_col = 5*add_iters # how many population evolutions happen before givi
 
 type = "sharp" # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = False # fixed height peaks (will be at the value of max_height) or not
+light_source_name = "AM1.5g"
 
 max_height = 1 # maximum height of reflection peaks
 base = 0 # baseline fixed reflection
@@ -28,9 +29,11 @@ color_names, color_XYZ = load_babel() # 24 default Babel colors
 # color_names = color_names[:5]
 # color_XYZ = color_XYZ[:5]
 
-photon_flux_cell = np.array(LightSource(
-    source_type="standard", version="AM1.5g", x=wl_cell, output_units="photon_flux_per_nm"
-).spectrum(wl_cell))
+
+light_source = LightSource(
+    source_type="standard", version=light_source_name, x=wl_cell, output_units="photon_flux_per_nm")
+
+photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 photon_flux_color = photon_flux_cell[:, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)]
 
