@@ -132,3 +132,5 @@ dmypy.json
 plots/*
 color_data/*
 .Rproj.user
+
+.obsidian
