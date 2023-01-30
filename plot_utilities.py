@@ -105,7 +105,6 @@ def wavelength_to_rgb(wavelengths, gamma=0.8):
     return RGBA
 
 
-
 def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr):
     # width is with an axis spacing of "1" for the x-axis colour labels
 

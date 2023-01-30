@@ -423,7 +423,10 @@ if __name__ == "__main__":
         if i1 == 2:
             for l1 in range(i1 + 1):
                 ax2.plot(
-                    eff_xr.color.data, I_arr[:, l1]/10, marker=shapes[l1], color=pal[l1],
+                    eff_xr.color.data,
+                    I_arr[:, l1] / 10,
+                    marker=shapes[l1],
+                    color=pal[l1],
                 )
 
     ax.legend()
@@ -441,4 +444,3 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
-

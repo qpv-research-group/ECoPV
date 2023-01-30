@@ -13,6 +13,7 @@ from colormath.color_conversions import convert_color
 
 current_path = pathlib.Path(__file__).parent.resolve()
 
+
 def load_cmf(wl: np.ndarray) -> np.ndarray:
     """Load the CIE 1931 2 degree standard observer color matching functions and interpolate them to the given wavelengths"""
 

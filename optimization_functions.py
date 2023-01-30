@@ -32,7 +32,14 @@ def reorder_peaks(pop, n_peaks, n_junctions, fixed_height=True):
     else:
         return np.hstack((peaks, sorted_widths, sorted_heights, bandgaps))
 
-def db_cell_calculation(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: float, rad_eff: int = 1) -> tuple:
+
+def db_cell_calculation(
+    egs: Sequence[float],
+    flux: np.ndarray,
+    wl: np.ndarray,
+    interval: float,
+    rad_eff: int = 1,
+) -> tuple:
 
     """Calculates recombination current density, current due to illumination, voltages at the maximum power point
     and currents at the maximum power point of a multi-junction solar cell in the detailed-balance limit.
@@ -71,7 +78,13 @@ def db_cell_calculation(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, 
     return j01s, jscs, Vmaxs, Imaxs
 
 
-def getPmax(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: float, rad_eff: int = 1) -> float:
+def getPmax(
+    egs: Sequence[float],
+    flux: np.ndarray,
+    wl: np.ndarray,
+    interval: float,
+    rad_eff: int = 1,
+) -> float:
     """Calculates the maximum power (in W) of a multi-junction solar cell in the detailed-balance limit.
 
     :param egs: Bandgaps of the subcells in eV, order from highest to lowest
@@ -93,7 +106,13 @@ def getPmax(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: fl
     return vTandem * minImax
 
 
-def getIVmax(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: float, rad_eff: int = 1) -> tuple:
+def getIVmax(
+    egs: Sequence[float],
+    flux: np.ndarray,
+    wl: np.ndarray,
+    interval: float,
+    rad_eff: int = 1,
+) -> tuple:
     """Calculates the voltages and currents of each junction in a multi-junction cell at the maximum power point
      in the detailed-balance limit.
 
@@ -108,7 +127,13 @@ def getIVmax(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: f
     return Vmaxs, Imaxs
 
 
-def getIVtandem(egs: Sequence[float], flux: np.ndarray, wl: np.ndarray, interval: float, rad_eff: int = 1) -> tuple:
+def getIVtandem(
+    egs: Sequence[float],
+    flux: np.ndarray,
+    wl: np.ndarray,
+    interval: float,
+    rad_eff: int = 1,
+) -> tuple:
 
     """Calculates the overall voltage and current at the maximum power point of multi-junction cell
      in the detailed-balance limit.

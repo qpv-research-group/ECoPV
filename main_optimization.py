@@ -12,7 +12,16 @@ from solcore.constants import h, c
 import pathlib
 from os.path import join
 from optimization_functions import reorder_peaks, getPmax
-from spectrum_functions import load_cmf, spec_to_XYZ, convert_xyY_to_XYZ, convert_xyY_to_Lab, convert_XYZ_to_Lab, make_spectrum_ndip, gen_spectrum_ndip, delta_XYZ
+from spectrum_functions import (
+    load_cmf,
+    spec_to_XYZ,
+    convert_xyY_to_XYZ,
+    convert_xyY_to_Lab,
+    convert_XYZ_to_Lab,
+    make_spectrum_ndip,
+    gen_spectrum_ndip,
+    delta_XYZ,
+)
 
 hc = h * c
 
@@ -24,6 +33,7 @@ current_path = pathlib.Path(__file__).parent.resolve()
 # - allow passing other argeumtns to DE and MOAED using kwargs
 # - allow plotting of Pareto front again
 # - consistent spelling colour/color and optimi(z/s)ation
+
 
 def load_colorchecker(output_coords: str = "XYZ") -> Tuple[np.ndarray, np.ndarray]:
     """Load the colorchecker data from the csv file and return is as an array of coordinates
@@ -63,7 +73,12 @@ def load_colorchecker(output_coords: str = "XYZ") -> Tuple[np.ndarray, np.ndarra
         ]
     )
 
-    color_xyY = np.loadtxt(join(current_path, "data", "paper_colors.csv"), skiprows=1, usecols=[2,3,4], delimiter=',')
+    color_xyY = np.loadtxt(
+        join(current_path, "data", "paper_colors.csv"),
+        skiprows=1,
+        usecols=[2, 3, 4],
+        delimiter=",",
+    )
 
     if output_coords == "xyY":
         return color_names, color_xyY
@@ -410,8 +425,12 @@ class single_color_cell:
 
     """Class to create object to run the optimization for a single coloured cell, combining colour calculation with
     the electrical model."""
+
     def __init__(
-        self, fix_height: bool = True, spectrum_function: Callable = gen_spectrum_ndip, plot_pareto: bool = False
+        self,
+        fix_height: bool = True,
+        spectrum_function: Callable = gen_spectrum_ndip,
+        plot_pareto: bool = False,
     ):
         """Initialise the object.
 
@@ -650,8 +669,14 @@ class color_optimization:
 
 class cell_optimization:
     """Class to create object for pygmo2 for the optimization of the bandgaps of a cell for a given incident photon flux (ignoring colour, i.e. a black cell)."""
+
     def __init__(
-        self, n_juncs: int, photon_flux: np.ndarray, power_in: float = 1000.0, eta_ext: float = 1.0, fixed_bandgaps: Sequence=[]
+        self,
+        n_juncs: int,
+        photon_flux: np.ndarray,
+        power_in: float = 1000.0,
+        eta_ext: float = 1.0,
+        fixed_bandgaps: Sequence = [],
     ):
         """Initializes the object for cell optimization.
 
@@ -703,7 +728,14 @@ class cell_optimization:
         return 1
 
 
-def plot_outcome(spec: np.ndarray, photon_flux_cell: np.ndarray, target: np.ndarray, name: str, Egs: Sequence=None, ax=None):
+def plot_outcome(
+    spec: np.ndarray,
+    photon_flux_cell: np.ndarray,
+    target: np.ndarray,
+    name: str,
+    Egs: Sequence = None,
+    ax=None,
+):
     """Function to plot the outcome (reflection spectrum, target and found colour) of a combined cell efficiency/colour
     optimization, or a colour-only optimization.
 

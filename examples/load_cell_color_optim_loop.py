@@ -99,7 +99,12 @@ shapes = ["o", "+", "^", ".", "*", "v", "s", "x"]
 
 
 ### Compare 1J limiting efficiencies with those from paper ###
-single_J_result = np.loadtxt(join("../data", "paper_colors.csv"), skiprows=1, usecols=[2, 3, 4, 5, 6, 7, 8, 9], delimiter=',')
+single_J_result = np.loadtxt(
+    join("../data", "paper_colors.csv"),
+    skiprows=1,
+    usecols=[2, 3, 4, 5, 6, 7, 8, 9],
+    delimiter=",",
+)
 n_peaks = 2
 n_junctions = 1
 
@@ -130,12 +135,12 @@ champion_pops = np.loadtxt(
     + "_spd.txt"
 )
 
-fig, (ax, ax2) = plt.subplots(1,2, figsize=(10,5))
-ax.plot(color_names, single_J_result[:,3], 'ok', label="Published results", mfc='none')
-ax.plot(color_names, champion_effs, 'or', label="MO-DE results", mfc='none')
+fig, (ax, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+ax.plot(color_names, single_J_result[:, 3], "ok", label="Published results", mfc="none")
+ax.plot(color_names, champion_effs, "or", label="MO-DE results", mfc="none")
 ax.legend()
-ax2.plot(color_names, champion_pops[:,-1], 'ok', mfc='none')
-ax2.plot(color_names, single_J_result[:,7], 'or', mfc='none')
+ax2.plot(color_names, champion_pops[:, -1], "ok", mfc="none")
+ax2.plot(color_names, single_J_result[:, 7], "or", mfc="none")
 apply_formatting(ax, color_labels=color_names)
 apply_formatting(ax2, color_labels=color_names)
 
