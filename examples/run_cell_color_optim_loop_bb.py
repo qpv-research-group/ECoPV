@@ -1,4 +1,4 @@
-from main_optimization import (
+from ecopv.main_optimization import (
     load_colorchecker,
     multiple_color_cells,
     cell_optimization,

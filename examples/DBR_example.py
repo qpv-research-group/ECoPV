@@ -5,9 +5,9 @@ from solcore.structure import Layer
 import numpy as np
 from rayflare.options import default_options
 from solcore.light_source import LightSource
-from spectrum_functions import spec_to_XYZ, load_cmf
-from optimization_functions import getPmax
-from plot_utilities import plot_outcome
+from ecopv.spectrum_functions import spec_to_XYZ, load_cmf
+from ecopv.optimization_functions import getPmax
+from ecopv.main_optimization import plot_outcome
 from solcore.constants import h, c
 
 interval = 0.01

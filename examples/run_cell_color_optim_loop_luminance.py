@@ -1,9 +1,9 @@
-from main_optimization import (
+from ecopv.main_optimization import (
     load_colorchecker,
     multiple_color_cells,
     cell_optimization,
 )
-from optimization_functions import getIVtandem
+from ecopv.optimization_functions import getIVtandem
 import numpy as np
 from colormath.color_conversions import convert_color
 from colormath.color_objects import xyYColor, XYZColor
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import pygmo as pg
 from os import path
 from cycler import cycler
-from plot_utilities import *
+from ecopv.plot_utilities import *
 
 calc = True
 

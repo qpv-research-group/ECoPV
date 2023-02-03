@@ -1,12 +1,12 @@
 from os.path import join
-from optimization_functions import getPmax, getIVmax
-from spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
+from ecopv.optimization_functions import getPmax, getIVmax
+from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
 
 from solcore.light_source import LightSource
 import seaborn as sns
 from cycler import cycler
 
-from plot_utilities import *
+from ecopv.plot_utilities import *
 
 
 def make_sorted_xr(arr, color_names, append_black=None):
@@ -100,7 +100,7 @@ shapes = ["o", "+", "^", ".", "*", "v", "s", "x"]
 
 ### Compare 1J limiting efficiencies with those from paper ###
 single_J_result = np.loadtxt(
-    join("../data", "paper_colors.csv"),
+    join("../ecopv/data", "paper_colors.csv"),
     skiprows=1,
     usecols=[2, 3, 4, 5, 6, 7, 8, 9],
     delimiter=",",

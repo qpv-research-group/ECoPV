@@ -1,5 +1,6 @@
 import numpy as np
-from main_optimization import cell_optimization
+from ecopv.main_optimization import cell_optimization
+
 import pygmo as pg
 from solcore.light_source import LightSource
 from time import time

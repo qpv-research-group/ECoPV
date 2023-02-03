@@ -1,4 +1,4 @@
-from main_optimization import (
+from ecopv.main_optimization import (
     load_colorchecker,
     multiple_color_cells,
     cell_optimization,
@@ -26,7 +26,7 @@ wl_cell = np.arange(
 # spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
 
-single_J_result = pd.read_csv("../data/paper_colors.csv")
+single_J_result = pd.read_csv("../ecopv/data/paper_colors.csv")
 
 
 initial_iters = 100  # number of initial evolutions for the archipelago

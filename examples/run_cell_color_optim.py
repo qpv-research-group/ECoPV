@@ -1,14 +1,15 @@
-from main_optimization import load_colorchecker, multiple_color_cells
+from ecopv.main_optimization import load_colorchecker, multiple_color_cells
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
+from time import time
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error deltaXYZ will be ~ 0.001.
 # (deltaXYZ = maximum fractional error in X, Y, Z colour coordinates)
 acceptable_eff_change = (
     1e-4  # how much can the efficiency (in %) change between iteration sets?
 )
-n_trials = 10  # number of islands which will run concurrently
+n_trials = 8  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(300, 4000, interval)  # wavelengths
 
@@ -54,6 +55,8 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 if __name__ == "__main__":
+
+    start = time()
     # Need this because otherwise the parallel running of the different islands (n_trials) may throw an error
 
     fig1 = plt.figure(1, figsize=(7.5, 3))
@@ -113,3 +116,4 @@ if __name__ == "__main__":
     # np.save("results/champion_eff_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_eff)
     # np.save("results/champion_pop_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), champion_pop)
     # np.save("results/niters_tcheb_adaptpopsize_gauss_vheight2" + str(n_peaks) + '_' + str(n_junctions) + '_' + str(ntest), iters_needed)
+    print(time() - start)

@@ -1,5 +1,5 @@
-from optimization_functions import getIVmax
-from spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
+from ecopv.optimization_functions import getIVmax
+from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
 
 import numpy as np
 from solcore.light_source import LightSource
@@ -7,7 +7,7 @@ import seaborn as sns
 import pandas as pd
 from cycler import cycler
 
-from plot_utilities import *
+from ecopv.plot_utilities import *
 
 
 def make_sorted_xr(arr, color_names, append_black=None):
@@ -42,7 +42,7 @@ def make_sorted_xr(arr, color_names, append_black=None):
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(300, 4000, interval)  # wavelengths
 
-single_J_result = pd.read_csv("../data/paper_colors.csv")
+single_J_result = pd.read_csv("../ecopv/data/paper_colors.csv")
 
 initial_iters = 100  # number of initial evolutions for the archipelago
 add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met

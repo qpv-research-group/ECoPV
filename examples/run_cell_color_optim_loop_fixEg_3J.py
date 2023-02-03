@@ -1,11 +1,11 @@
-from main_optimization import (
+from ecopv.main_optimization import (
     load_colorchecker,
     multiple_color_cells,
     cell_optimization,
 )
-from optimization_functions import getIVmax, getPmax
-from spectrum_functions import gen_spectrum_ndip
-from plot_utilities import *
+from ecopv.optimization_functions import getIVmax, getPmax
+from ecopv.spectrum_functions import gen_spectrum_ndip
+from ecopv.plot_utilities import *
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt

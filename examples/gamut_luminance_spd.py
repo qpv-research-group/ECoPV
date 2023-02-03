@@ -1,10 +1,10 @@
-from main_optimization import multiple_color_cells, cell_optimization
+from ecopv.main_optimization import multiple_color_cells, cell_optimization
 from colormath.color_objects import xyYColor
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
 import pygmo as pg
 from os import path
-from plot_utilities import *
+from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 

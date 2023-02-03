@@ -3,7 +3,7 @@
 Package requirements:
 - numpy
 - scipy
-- pygmo2
+- pygmo
 - solcore
 - colour-science
 - matplotlib

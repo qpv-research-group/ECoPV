@@ -1,5 +1,5 @@
 from colormath.color_objects import xyYColor, XYZColor
-from plot_utilities import *
+from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 
 Y = 0.5

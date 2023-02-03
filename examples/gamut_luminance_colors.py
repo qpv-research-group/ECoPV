@@ -1,8 +1,8 @@
-from main_optimization import color_optimization_only
+from ecopv.main_optimization import color_optimization_only
 from colormath.color_objects import xyYColor
 from solcore.light_source import LightSource
 from os import path
-from plot_utilities import *
+from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 
