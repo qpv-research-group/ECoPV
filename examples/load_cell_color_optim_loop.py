@@ -1,6 +1,6 @@
 from os.path import join
 from ecopv.optimization_functions import getPmax, getIVmax
-from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
+from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip, load_cmf
 
 from solcore.light_source import LightSource
 import seaborn as sns
@@ -525,7 +525,7 @@ plt.show()
 
 # Compare fixed and variable peak height results:
 n_junc_loop = [1, 2, 3, 4, 5, 6]
-x
+
 n_peak_loop = [2]
 
 alphas = [1, 0.5]

@@ -1,5 +1,5 @@
 import matplotlib.ticker as tck
-from main_optimization import load_colorchecker
+from ecopv.main_optimization import load_colorchecker
 from matplotlib.patches import Rectangle
 from matplotlib import rc
 import numpy as np
@@ -9,8 +9,6 @@ import matplotlib.pyplot as plt
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
 import xarray as xr
-
-from spectrum_functions import load_cmf, spec_to_XYZ
 
 rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 

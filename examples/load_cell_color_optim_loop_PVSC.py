@@ -1,5 +1,5 @@
 from ecopv.optimization_functions import getIVmax
-from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip
+from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip, load_cmf
 
 import numpy as np
 from solcore.light_source import LightSource
