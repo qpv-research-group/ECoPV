@@ -102,7 +102,7 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
-save_path = path.join(path.dirname(path.abspath(__file__)), "../results")
+save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 
 if __name__ == "__main__":

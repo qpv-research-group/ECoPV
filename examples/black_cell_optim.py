@@ -41,11 +41,3 @@ for n_juncs in [1, 2, 3]:
     print("Optimized bandgaps: ", np.sort(pop.champion_x))
     print("Time taken (s): ", time() - start)
 
-# import matplotlib.pyplot as plt
-# Egs = np.linspace(0.9, 1.4)
-# Pmax = np.empty_like(Egs)
-# for i1, Eg in enumerate(Egs):
-#     Pmax[i1] = getPmax([Eg], photon_flux[1], photon_flux[0], interval, 1)
-# plt.figure()
-# plt.plot(Egs, Pmax)
-# plt.show()

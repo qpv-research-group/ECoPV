@@ -39,6 +39,7 @@ def db_cell_calculation(
     wl: np.ndarray,
     interval: float,
     rad_eff: int = 1,
+    upperE: float = 4.43
 ) -> tuple:
 
     """Calculates recombination current density, current due to illumination, voltages at the maximum power point
@@ -49,14 +50,15 @@ def db_cell_calculation(
     :param wl: Wavelengths of the solar spectrum in nm
     :param interval: Wavelength interval of the solar spectrum in nm
     :param rad_eff: Radiative efficiency of the cell (0-1)
+    :param upperE: upper limit (in eV) for integrating over photon flux
     """
 
     # Since we need previous Eg info have to iterate the Jsc array
     jscs = np.empty_like(egs)  # Quick way of defining jscs with same dimensions as egs
     j01s = np.empty_like(egs)
 
-    upperE = 4.14
     for i, eg in enumerate(egs):
+
         j01s[i] = (
             (pref / rad_eff)
             * (eg**2 + 2 * eg * (kbT) + 2 * (kbT) ** 2)
@@ -84,6 +86,7 @@ def getPmax(
     wl: np.ndarray,
     interval: float,
     rad_eff: int = 1,
+    upperE: float = 4.43
 ) -> float:
     """Calculates the maximum power (in W) of a multi-junction solar cell in the detailed-balance limit.
 
@@ -91,9 +94,11 @@ def getPmax(
     :param flux: Flux of the solar spectrum in W/m^2/nm
     :param wl: Wavelengths of the solar spectrum in nm
     :param interval: Wavelength interval of the solar spectrum in nm
-    :param rad_eff: Radiative efficiency of the cell (0-1)"""
+    :param rad_eff: Radiative efficiency of the cell (0-1)
+    :param upperE: upper limit (in eV) for integrating over photon flux
+   """
 
-    j01s, jscs, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff)
+    j01s, jscs, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff, upperE)
 
     # Find the minimum Imaxs
     minImax = np.amin(Imaxs)
@@ -112,6 +117,7 @@ def getIVmax(
     wl: np.ndarray,
     interval: float,
     rad_eff: int = 1,
+    upperE: float = 4.43
 ) -> tuple:
     """Calculates the voltages and currents of each junction in a multi-junction cell at the maximum power point
      in the detailed-balance limit.
@@ -121,8 +127,9 @@ def getIVmax(
     :param wl: Wavelengths of the solar spectrum in nm
     :param interval: Wavelength interval of the solar spectrum in nm
     :param rad_eff: Radiative efficiency of the cell (0-1)
+    :param upperE: upper limit (in eV) for integrating over photon flux
     """
-    _, _, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff)
+    _, _, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff, upperE)
 
     return Vmaxs, Imaxs
 
@@ -133,6 +140,7 @@ def getIVtandem(
     wl: np.ndarray,
     interval: float,
     rad_eff: int = 1,
+    upperE: float = 4.43
 ) -> tuple:
 
     """Calculates the overall voltage and current at the maximum power point of multi-junction cell
@@ -143,9 +151,10 @@ def getIVtandem(
     :param wl: Wavelengths of the solar spectrum in nm
     :param interval: Wavelength interval of the solar spectrum in nm
     :param rad_eff: Radiative efficiency of the cell (0-1)
+    :param upperE: upper limit (in eV) for integrating over photon flux
     """
 
-    j01s, jscs, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff)
+    j01s, jscs, Vmaxs, Imaxs = db_cell_calculation(egs, flux, wl, interval, rad_eff, upperE)
 
     # Find the minimum Imaxs
     minImax = np.amin(Imaxs)

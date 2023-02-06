@@ -10,7 +10,7 @@ import pygmo as pg
 from os import path
 import pandas as pd
 
-force_rerun = True
+force_rerun = False
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
@@ -78,7 +78,7 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
-save_path = path.join(path.dirname(path.abspath(__file__)), "../results")
+save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 for n_junctions in n_junc_loop:
 
@@ -86,7 +86,7 @@ for n_junctions in n_junc_loop:
         n_junctions, light_source_name
     )
 
-    if not path.exists(save_loc):
+    if not path.exists(save_loc) or force_rerun:
 
         p_init = cell_optimization(
             n_junctions,
@@ -175,6 +175,7 @@ if __name__ == "__main__":
                     max_height=max_height,
                     Eg_black=Eg_guess,
                     plot=False,
+                    return_archipelagos=True
                 )
 
                 champion_effs = result["champion_eff"]

@@ -9,9 +9,9 @@ col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color
 acceptable_eff_change = (
     1e-4  # how much can the efficiency (in %) change between iteration sets?
 )
-n_trials = 8  # number of islands which will run concurrently
+n_trials = 10  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
-wl_cell = np.arange(300, 4000, interval)  # wavelengths
+wl_cell = np.arange(280, 4000, interval)  # wavelengths
 
 initial_iters = 100  # number of initial evolutions for the archipelago
 add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
@@ -28,7 +28,7 @@ fixed_height = True  # fixed height peaks (will be at the value of max_height) o
 max_height = 1  # maximum height of reflection peaks
 base = 0  # baseline fixed reflection
 
-n_junctions = 2  # number of junctions in the cell
+n_junctions = 1  # number of junctions in the cell
 
 n_peaks = 2  # number of reflection peaks
 

@@ -309,6 +309,7 @@ for n_junctions in n_junc_loop:
             light_source.spectrum(wl_cell)[1],
             light_source.spectrum(wl_cell)[0],
             interval,
+            upperE=1240/min(wl_cell)
         )
         / light_source.power_density
     )

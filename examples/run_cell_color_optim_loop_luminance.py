@@ -14,6 +14,7 @@ from os import path
 from cycler import cycler
 from ecopv.plot_utilities import *
 
+force_rerun = True
 calc = True
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
@@ -80,7 +81,7 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
-save_path = path.join(path.dirname(path.abspath(__file__)), "../results")
+save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 
 for n_junctions in n_junc_loop:
@@ -89,7 +90,7 @@ for n_junctions in n_junc_loop:
         n_junctions, light_source_name
     )
 
-    if not path.exists(save_loc):
+    if not path.exists(save_loc) or force_rerun:
 
         p_init = cell_optimization(
             n_junctions,
@@ -197,6 +198,7 @@ if __name__ == "__main__":
                     max_height=max_height,
                     Eg_black=Eg_guess,
                     plot=False,
+                    return_archipelagos=True
                 )
 
                 champion_effs = result["champion_eff"]
@@ -263,15 +265,15 @@ if __name__ == "__main__":
                 # else:
                 #     print("Result already exists")
 
-        np.save("../results/champion_effs_array_spd.npy", champion_effs_array)
-        np.save("../results/champion_pops_array_spd.npy", champion_pops_array)
+        np.save("results/champion_effs_array_spd.npy", champion_effs_array)
+        np.save("results/champion_pops_array_spd.npy", champion_pops_array)
 
     else:
         champion_effs_array = np.load(
-            "../results/champion_effs_array_spd.npy", allow_pickle=True
+            "results/champion_effs_array_spd.npy", allow_pickle=True
         )
         champion_pops_array = np.load(
-            "../results/champion_pops_array_spd.npy", allow_pickle=True
+            "results/champion_pops_array_spd.npy", allow_pickle=True
         )
 
     zs = champion_effs_array == 0

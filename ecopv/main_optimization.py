@@ -546,6 +546,7 @@ class color_function_mobj:
         self.Eg_black = Eg_black
 
         self.cell_wl = photon_flux[0]
+        self.upperE = 1240/min(self.cell_wl)
         self.col_wl = self.cell_wl[
             np.all(
                 [self.cell_wl >= self.c_bounds[0], self.cell_wl <= self.c_bounds[1]],
@@ -588,7 +589,7 @@ class color_function_mobj:
 
         flux = self.solar_flux * (1 - R_spec_cell)
 
-        eta = getPmax(Egs, flux, self.cell_wl, self.interval) / self.incident_power
+        eta = getPmax(Egs, flux, self.cell_wl, self.interval, upperE=self.upperE) / self.incident_power
 
         return delta, eta
 
@@ -693,6 +694,7 @@ class cell_optimization:
         self.n_juncs = n_juncs
 
         self.cell_wl = photon_flux[0]
+        self.upperE = 1240 / np.min(self.cell_wl)
         self.solar_flux = photon_flux[1]
         self.E_limits = [1240 / np.max(self.cell_wl), 1240 / np.min(self.cell_wl)]
         self.incident_power = power_in
@@ -706,7 +708,7 @@ class cell_optimization:
         Egs = -np.sort(-np.array(x))  # [0]
 
         eta = (
-            getPmax(Egs, self.solar_flux, self.cell_wl, self.interval, self.eta_ext)
+            getPmax(Egs, self.solar_flux, self.cell_wl, self.interval, self.eta_ext, self.upperE)
             / self.incident_power
         )
 

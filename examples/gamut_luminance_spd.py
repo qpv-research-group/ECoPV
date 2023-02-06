@@ -8,6 +8,8 @@ from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 
+force_rerun = False
+
 Ys = [0.25, 0.5, 0.75]
 
 wl_vis = np.linspace(360, 780, 500)
@@ -115,7 +117,7 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
-save_path = path.join(path.dirname(path.abspath(__file__)), "../results")
+save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 
 save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
@@ -124,7 +126,7 @@ save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
 
 level_limits = [[44, 48], [42, 46], [39, 42]]
 
-if not path.exists(save_loc):
+if not path.exists(save_loc) or force_rerun:
 
     p_init = cell_optimization(
         n_junctions, photon_flux_cell, power_in=light_source.power_density, eta_ext=1

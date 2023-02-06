@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import pygmo as pg
 from os import path
 
+force_rerun = True # re-run calculation even if saved results are found
+
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
 
@@ -18,7 +20,7 @@ acceptable_eff_change = 1e-4  # how much can the efficiency (in %) change betwee
 n_trials = 10  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(
-    300, 4000, interval
+    180, 4000, interval
 )  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
 # spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
@@ -54,7 +56,7 @@ fixed_height_loop = [True]
     load_colorchecker()
 )  # load the names and XYZ coordinates of the 24 default Babel colors
 
-# Use AM1.5G spectrum:
+# Use black body spectrum:
 light_source = LightSource(
     source_type="black body",
     x=wl_cell,
@@ -74,7 +76,7 @@ shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
-save_path = path.join(path.dirname(path.abspath(__file__)), "../results")
+save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 for n_junctions in n_junc_loop:
 
@@ -82,7 +84,7 @@ for n_junctions in n_junc_loop:
         n_junctions, light_source_name
     )
 
-    if not path.exists(save_loc):
+    if not path.exists(save_loc) or force_rerun:
 
         p_init = cell_optimization(
             n_junctions,
@@ -141,7 +143,7 @@ if __name__ == "__main__":
                     + "_spd.txt"
                 )
 
-                if not path.exists(save_name):
+                if not path.exists(save_name) or force_rerun:
                     print(
                         n_peaks,
                         "peaks,",
@@ -169,6 +171,7 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         power_in=light_source.power_density,
                         plot=False,
+                        return_archipelagos=True
                     )
 
                     champion_effs = result["champion_eff"]
