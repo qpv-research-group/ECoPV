@@ -211,12 +211,17 @@ class make_spectrum_ndip:
         if w_bounds is None:
             if fixed_height:
                 self.w_bounds = [
-                    0,
-                    np.max([120 / n_peaks, (350 / n_peaks) * target[1]]),
+                    0, # lower width bound
+                    np.max([120 / n_peaks, (350 / n_peaks) * target[1]]), # upper width bound
                 ]
+                # width bounds are generated based on the Y (luminance) of the target colour and the number of peaks.
+                # This was done by looking at the approximate number of photos needed to create a colour of a certain Y
+                # (and obviously allowing extra tolerance around this). The minimum width is always 0, the maximum with is
+                # either 120/n_peaks (so 60 nm for two peaks), or (Y*350/n_peaks), whichever is larger.
 
             else:
                 self.w_bounds = [0, 400]
+                # if not doing fixed height peaks, argument above obviously doesn't work, so just set max width to 400 nm
 
         else:
             self.w_bounds = w_bounds
@@ -253,6 +258,8 @@ class make_spectrum_ndip:
                 [self.c_bounds[0]] * self.n_peaks + [self.w_bounds[0]] * self.n_peaks,
                 [self.c_bounds[1]] * self.n_peaks + [self.w_bounds[1]] * self.n_peaks,
             )
+        # ([lower bound of peak 1 centre, lower bound of peak 2 centre, ...., lower bound of peak 1 width, lower bound of peak 2 width, ...],
+        # [upper bound of peak 1 centre, upper bound of peak 2 centre, ..., upper bound of peak 1 width, upper bound of peak 2 width, ...])
 
         else:
             return (

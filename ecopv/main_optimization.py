@@ -197,6 +197,7 @@ def multiple_color_cells(
                 type=type,
                 fixed_height=fixed_height,
             )
+            # the bounds are generated when calling make_spectrum_ndip depending on the target colour
 
             internal_run = single_color_cell(
                 spectrum_function=spectrum_obj.spectrum_function
@@ -213,7 +214,7 @@ def multiple_color_cells(
                 current_iters,
                 n_trials=n_trials,
                 power_in=power_in,
-                spectrum_bounds=spectrum_obj.get_bounds(),
+                spectrum_bounds=spectrum_obj.get_bounds(), # spectrum_bounds which are sent to single_color_cell and then to color_function_mobj
                 Eg_black=Eg_black,
                 archi=archipelagos[k1],
                 base=base,
@@ -454,7 +455,7 @@ class single_color_cell:
         gen=1000,
         n_trials=10,
         power_in=1000,
-        spectrum_bounds=None,
+        spectrum_bounds=None, # spectrum_bounds which will be passed to color_function_mobj
         Eg_black=None,
         archi=None,
         fixed_bandgaps=None,
@@ -530,7 +531,11 @@ class color_function_mobj:
         photon_flux,
         spec_func=gen_spectrum_ndip,
         power_in=1000,
-        spectrum_bounds=[],
+        spectrum_bounds=[], # spectrum_bounds is passed to the object here - these are only the bounds describing the
+            # reflection peaks, not the bandgap. This is a tuple (or list) of lists with the format:
+            # ([lower bound of peak 1 centre, lower bound of peak 2 centre, lower bound of peak 1 width, lower bound of peak 2 width],
+            # [upper bound of peak 1 centre, upper bound of peak 2 centre, upper bound of peak 1 width, upper bound of peak 2 width])
+            # Similar for more than two peaks.
         Eg_black=None,
         fixed_bandgaps=None,
         **kwargs
@@ -618,6 +623,9 @@ class color_function_mobj:
             self.bounds_passed[0] + Eg_bounds[0],
             self.bounds_passed[1] + Eg_bounds[1],
         )
+        # self.bounds_passed is the spectrum_bounds argument which was passed to the object, and contains the information
+        # about the bounds for the reflection peaks. Eg_bounds is the bounds for the bandgaps. Overall a list of lists is
+        # generated: [list of lower bounds, list of upper bounds]
 
         return bounds
 
