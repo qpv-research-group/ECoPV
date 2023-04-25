@@ -51,7 +51,7 @@ def db_cell_calculation_noR(
     """Calculates recombination current density, current due to illumination, voltages
     at the maximum power point and currents at the maximum power point of a
     multi-junction solar cell in the detailed-balance limit. Ignores the effect of
-    reflected photons on the radiative recombination current (dark current).
+    reflected photons on the recombination current (dark current).
 
     :param egs: Bandgaps of the subcells in eV, order from highest to lowest
     :param flux: Flux of the solar spectrum in W/m^2/nm
@@ -108,7 +108,7 @@ def db_cell_calculation_perfectR(
     """Calculates recombination current density, current due to illumination, voltages
     at the maximum power point and currents at the maximum power point of a
     multi-junction solar cell in the detailed-balance limit. Takes into account the
-    effect of reflected photons on the radiative recombination current (dark current)
+    effect of reflected photons on the recombination current (dark current)
     for rectangular reflection peaks using the analytical form of the integral.
 
     :param egs: Bandgaps of the subcells in eV, order from highest to lowest
@@ -186,7 +186,7 @@ def db_cell_calculation_numericalR(
     """Calculates recombination current density, current due to illumination, voltages
     at the maximum power point and currents at the maximum power point of a
     multi-junction solar cell in the detailed-balance limit. Takes into accoun the
-    effect of reflected photons on the radiative recombination current (dark current) by
+    effect of reflected photons on the recombination current (dark current) by
     using numerical integration (this is much slower than the
     db_cell_calculation_perfectR method).
 
