@@ -116,6 +116,7 @@ def multiple_color_cells(
     fixed_bandgaps: list = None,
     power_in: float = 1000,
     return_archipelagos: bool = False,
+    j01_method: str = "perfect_R",
 ) -> dict:
 
     """Optimize color and efficiency of multiple colored cells using pygmo2's moaed (multi-objective differential evolution)
@@ -144,6 +145,8 @@ def multiple_color_cells(
     :param power_in: power in of the cell
     :param return_archipelagos: whether to return the archipelagos (pygmo2 objects) at the end of the optimization (these
                                 can be very large objects!)
+    :param j01_method: method to use for calculating dark current. Can be "perfect_R"
+       (default), "no_R" or "numerical_R".
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
             each color), "champion_pop" (the champion population which maximizes the efficiency while staying within the
@@ -220,6 +223,7 @@ def multiple_color_cells(
                 base=base,
                 max_height=max_height,
                 fixed_bandgaps=fixed_bandgaps,
+                j01_method=j01_method,
             )
 
             archipelagos[k1] = archi
@@ -459,6 +463,7 @@ class single_color_cell:
         Eg_black=None,
         archi=None,
         fixed_bandgaps=None,
+        j01_method="perfect_R",
         **kwargs
     ):
 
@@ -472,6 +477,7 @@ class single_color_cell:
             spectrum_bounds,
             Eg_black,
             fixed_bandgaps,
+            j01_method,
             **kwargs
         )
 
@@ -538,6 +544,7 @@ class color_function_mobj:
             # Similar for more than two peaks.
         Eg_black=None,
         fixed_bandgaps=None,
+        j01_method="perfect_R",
         **kwargs
     ):
 
@@ -570,6 +577,7 @@ class color_function_mobj:
         self.interval = np.round(np.diff(self.cell_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
         self.add_args = kwargs
+        self.j01_method = j01_method
 
         if fixed_bandgaps is not None:
             self.fixed_bandgaps = fixed_bandgaps
@@ -594,7 +602,9 @@ class color_function_mobj:
 
         flux = self.solar_flux * (1 - R_spec_cell)
 
-        eta = getPmax(Egs, flux, self.cell_wl, self.interval, upperE=self.upperE) / self.incident_power
+        eta = getPmax(Egs, flux, self.cell_wl, self.interval,
+                      x, upperE=self.upperE,
+                      method=self.j01_method) / self.incident_power
 
         return delta, eta
 
@@ -686,6 +696,7 @@ class cell_optimization:
         power_in: float = 1000.0,
         eta_ext: float = 1.0,
         fixed_bandgaps: Sequence = [],
+        j01_method: str = "no_R",
     ):
         """Initializes the object for cell optimization.
 
@@ -710,13 +721,16 @@ class cell_optimization:
         self.dim = n_juncs
         self.eta_ext = eta_ext
         self.fixed_bandgaps = fixed_bandgaps
+        self.j01_method = j01_method
 
     def fitness(self, x):
         x = x.tolist() + self.fixed_bandgaps
         Egs = -np.sort(-np.array(x))  # [0]
 
         eta = (
-            getPmax(Egs, self.solar_flux, self.cell_wl, self.interval, self.eta_ext, self.upperE)
+            getPmax(Egs, self.solar_flux, self.cell_wl, self.interval,
+                    x, self.eta_ext,
+                    self.upperE, self.j01_method)
             / self.incident_power
         )
 

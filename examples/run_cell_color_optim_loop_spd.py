@@ -10,7 +10,7 @@ import pygmo as pg
 from os import path
 import pandas as pd
 
-force_rerun = False
+force_rerun = True
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
@@ -25,39 +25,34 @@ wl_cell = np.arange(
 )  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
 # spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
-
 single_J_result = pd.read_csv("../ecopv/data/paper_colors.csv")
-
 
 initial_iters = 100  # number of initial evolutions for the archipelago
 add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
-max_trials_col = (
-    3 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
+max_trials_col = 3 * add_iters
+# how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
 type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
+j01_method = "perfect_R"
 
-max_height = (
-    1  # maximum height of reflection peaks; fixed at this value of fixed_height = True
-)
-base = 0  # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
+max_height = 1
+# maximum height of reflection peaks; fixed at this value of if fixed_height = True
+
+base = 0
+# baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
 
 n_peak_loop = [2, 3, 4]  # loop through these numbers of reflection peaks
 
-(
-    color_names,
-    color_XYZ,
-) = (
-    load_colorchecker()
-)  # load the names and XYZ coordinates of the 24 default Babel colors
+color_names, color_XYZ = load_colorchecker()
+# load the names and XYZ coordinates of the 24 default Babel colors
 
 # Use AM1.5G spectrum:
 light_source = LightSource(
@@ -175,7 +170,8 @@ if __name__ == "__main__":
                     max_height=max_height,
                     Eg_black=Eg_guess,
                     plot=False,
-                    return_archipelagos=True
+                    return_archipelagos=True,
+                    j01_method=j01_method,
                 )
 
                 champion_effs = result["champion_eff"]
@@ -294,14 +290,14 @@ if __name__ == "__main__":
                 linestyle="none",
                 label="Power density",
             )
-            plt.plot(
-                color_names,
-                champion_effs_old,
-                "x",
-                mfc="none",
-                linestyle="none",
-                label="Photon flux",
-            )
+            # plt.plot(
+            #     color_names,
+            #     champion_effs_old,
+            #     "x",
+            #     mfc="none",
+            #     linestyle="none",
+            #     label="Photon flux",
+            # )
             plt.plot(
                 color_names, single_J_result["eta"], "o", mfc="none", label="1J result"
             )
@@ -322,14 +318,14 @@ if __name__ == "__main__":
                 linestyle="none",
                 label="Power density",
             )
-            plt.plot(
-                color_names,
-                champion_bandgaps_old,
-                marker="x",
-                mfc="none",
-                linestyle="none",
-                label="Photon flux",
-            )
+            # plt.plot(
+            #     color_names,
+            #     champion_bandgaps_old,
+            #     marker="x",
+            #     mfc="none",
+            #     linestyle="none",
+            #     label="Photon flux",
+            # )
             plt.plot(
                 color_names, single_J_result["Eg"], "o", mfc="none", label="1J result"
             )

@@ -59,8 +59,9 @@ def gen_spectrum_ndip(
 ) -> np.ndarray:  # center and width in nm
     """Generate a reflection spectrum with n_peaks rectangular peaks of fixed height.
 
-    :param pop: The population vector, which contains the peak centres and widths. The first n_peaks elements are the centres,
-                the next n_peaks elements are the widths.
+    :param pop: The population vector, which contains the peak centres and widths.
+        The first n_peaks elements are the centres, the next n_peaks elements are the
+        widths.
     :param n_peaks: The number of peaks in the reflection spectrum
     :param wl: vector of wavelengths
     :param max_height: height of the reflection peaks (0-1)

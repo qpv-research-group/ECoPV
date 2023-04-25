@@ -3,6 +3,7 @@ import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
 from time import time
+import os
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error deltaXYZ will be ~ 0.001.
 # (deltaXYZ = maximum fractional error in X, Y, Z colour coordinates)
@@ -17,13 +18,13 @@ initial_iters = 100  # number of initial evolutions for the archipelago
 add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
-max_trials_col = (
-    5 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
+max_trials_col = 5 * add_iters
+# how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
 type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) or not
+j01_method = "perfect_R"
 
 max_height = 1  # maximum height of reflection peaks
 base = 0  # baseline fixed reflection
@@ -34,6 +35,10 @@ n_peaks = 2  # number of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker colors
 
+single_junction_data = np.loadtxt(os.path.join(os.path.dirname(os.path.dirname(
+    __file__)), 'ecopv', 'data',
+                   'paper_colors.csv'), skiprows=1, delimiter=',',
+    usecols=np.arange(2,10))
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
 photon_flux_cell = np.array(
@@ -79,6 +84,7 @@ if __name__ == "__main__":
         base=base,
         max_height=max_height,
         plot=True,
+        j01_method=j01_method,
     )
 
     plt.figure()
@@ -89,6 +95,9 @@ if __name__ == "__main__":
         mfc="none",
         linestyle="none",
     )
+
+    plt.plot(color_names, single_junction_data[:,3],
+             marker=shapes[1], mfc='none', linestyle='none')
 
     plt.xticks(rotation=45)
     plt.legend()
@@ -105,6 +114,9 @@ if __name__ == "__main__":
         mfc="none",
         linestyle="none",
     )
+
+    plt.plot(color_names, single_junction_data[:,7],
+             marker=shapes[1], mfc='none', linestyle='none')
 
     plt.xticks(rotation=45)
     plt.legend()
