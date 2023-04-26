@@ -49,7 +49,7 @@ base = 0
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
 
-n_peak_loop = [2, 3, 4]  # loop through these numbers of reflection peaks
+n_peak_loop = [3, 4]  # loop through these numbers of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()
 # load the names and XYZ coordinates of the 24 default Babel colors
@@ -306,6 +306,7 @@ if __name__ == "__main__":
             plt.legend()
             plt.ylabel("Efficiency (%)")
             # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
+            plt.title("Peaks:" + str(n_peaks) + "Junctions:" + str(n_junctions))
             plt.tight_layout()
             plt.show()
 
@@ -332,6 +333,6 @@ if __name__ == "__main__":
             plt.xticks(rotation=45)
             plt.legend()
             plt.ylabel("Bandgap (eV)")
-            # plt.title("Pop:" + str(pop_size) + "Iters:" + str(n_iters) + "Time:" + str(time_taken))
+            plt.title("Peaks:" + str(n_peaks) + "Junctions:" + str(n_junctions))
             plt.tight_layout()
             plt.show()

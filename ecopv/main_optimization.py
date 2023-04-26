@@ -604,7 +604,9 @@ class color_function_mobj:
 
         eta = getPmax(Egs, flux, self.cell_wl, self.interval,
                       x, upperE=self.upperE,
-                      method=self.j01_method) / self.incident_power
+                      method=self.j01_method,
+                      n_peaks=self.n_peaks,
+                      ) / self.incident_power
 
         return delta, eta
 

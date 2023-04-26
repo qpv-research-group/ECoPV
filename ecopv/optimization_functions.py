@@ -268,7 +268,7 @@ def getPmax(
     }
 
     j01s, jscs, Vmaxs, Imaxs = db_cell_calculation[method](egs, flux, wl, interval,
-                                                        rad_eff, upperE, x)
+                                                        rad_eff, upperE, x, n_peaks)
 
     # Find the minimum Imaxs
     minImax = np.amin(Imaxs)
