@@ -117,6 +117,8 @@ def multiple_color_cells(
     power_in: float = 1000,
     return_archipelagos: bool = False,
     j01_method: str = "perfect_R",
+    minimum_eff: Sequence[float] = None,
+    seed_population: np.ndarray = None,
 ) -> dict:
 
     """Optimize color and efficiency of multiple colored cells using pygmo2's moaed (multi-objective differential evolution)
@@ -147,6 +149,14 @@ def multiple_color_cells(
                                 can be very large objects!)
     :param j01_method: method to use for calculating dark current. Can be "perfect_R"
        (default), "no_R" or "numerical_R".
+    :param minimum_eff: minimum efficiency of the cell. If the efficiency is lower than
+        this, the optimization will continue even if the other conditions are met. This
+        could be e.g. an efficiency obtained from optimizing a cell with the same colour
+        and fewer junctions.
+    :param seed_population: population to seed the optimization with. This could be
+        e.g. the result of the optimization with fewer junctions. If only a partial
+        population is provided, the first n elements of the decision vector will be
+        set.
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
             each color), "champion_pop" (the champion population which maximizes the efficiency while staying within the
@@ -165,6 +175,12 @@ def multiple_color_cells(
 
     if max_trials_col is None:
         max_trials_col = 5 * initial_iters
+
+    if minimum_eff is None:
+        minimum_eff = np.zeros(len(color_XYZ))
+
+    if seed_population is None:
+        seed_population = [None] * len(color_XYZ)
 
     mean_sd_effs = np.empty((len(color_XYZ), 4))
 
@@ -224,6 +240,7 @@ def multiple_color_cells(
                 max_height=max_height,
                 fixed_bandgaps=fixed_bandgaps,
                 j01_method=j01_method,
+                seed_pop=seed_population[k1],
             )
 
             archipelagos[k1] = archi
@@ -291,24 +308,18 @@ def multiple_color_cells(
 
                 else:
                     print("No change/worse champion efficiency")
-                    conv[k1] = True
 
-                    spec = internal_run.spec_func(
-                        champion_pop[k1],
-                        n_peaks,
-                        photon_flux[0],
-                        base=base,
-                        max_height=max_height,
-                    )
+                    if ch_eff < minimum_eff[k1]:
+                        print("Minimum efficiency not met - keep trying", ch_pop,
+                              minimum_eff[k1])
+                        # if ch_eff < champion_eff[k1]:
+                        #     print("New efficiency worse than current champion, "
+                        #           "reset population")
+                        #     archipelagos[k1] = None
 
-                    color_XYZ_found[k1] = spec_to_XYZ(
-                        spec,
-                        hc * photon_flux[1] / (photon_flux[0] * 1e-9),
-                        cmf,
-                        interval,
-                    )
+                    else:
+                        conv[k1] = True
 
-                    if plot:
                         spec = internal_run.spec_func(
                             champion_pop[k1],
                             n_peaks,
@@ -316,16 +327,32 @@ def multiple_color_cells(
                             base=base,
                             max_height=max_height,
                         )
-                        plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
-                        plt.xlim(300, 1000)
-                        plt.show()
 
-                    print(
-                        "Champion pop:",
-                        champion_pop[k1],
-                        "width limits:",
-                        spectrum_obj.get_bounds(),
-                    )
+                        color_XYZ_found[k1] = spec_to_XYZ(
+                            spec,
+                            hc * photon_flux[1] / (photon_flux[0] * 1e-9),
+                            cmf,
+                            interval,
+                        )
+
+                        if plot:
+                            spec = internal_run.spec_func(
+                                champion_pop[k1],
+                                n_peaks,
+                                photon_flux[0],
+                                base=base,
+                                max_height=max_height,
+                            )
+                            plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
+                            plt.xlim(300, 1000)
+                            plt.show()
+
+                        print(
+                            "Champion pop:",
+                            champion_pop[k1],
+                            "width limits:",
+                            spectrum_obj.get_bounds(),
+                        )
 
             else:
                 print(
@@ -464,6 +491,7 @@ class single_color_cell:
         archi=None,
         fixed_bandgaps=None,
         j01_method="perfect_R",
+        seed_pop=None,
         **kwargs
     ):
 
@@ -487,6 +515,19 @@ class single_color_cell:
 
         if archi is None:
             archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
+
+            if seed_pop is not None:
+
+                for isl in archi:
+
+                    population = isl.get_population()
+                    for i in range(popsize//2):
+                        current_x = population.get_x()[i]
+                        current_x[:len(seed_pop)] = seed_pop
+
+                        population.set_x(i, current_x)
+
+                    isl.set_population(population)
 
         archi.evolve()
 
@@ -699,6 +740,7 @@ class cell_optimization:
         eta_ext: float = 1.0,
         fixed_bandgaps: Sequence = [],
         j01_method: str = "no_R",
+        Eg_limits: Sequence = None,
     ):
         """Initializes the object for cell optimization.
 
@@ -717,7 +759,13 @@ class cell_optimization:
         self.cell_wl = photon_flux[0]
         self.upperE = 1240 / np.min(self.cell_wl)
         self.solar_flux = photon_flux[1]
-        self.E_limits = [1240 / np.max(self.cell_wl), 1240 / np.min(self.cell_wl)]
+
+        if Eg_limits is None:
+            self.E_limits = [1240 / np.max(self.cell_wl), 1240 / np.min(self.cell_wl)]
+
+        else:
+            self.E_limits = Eg_limits
+
         self.incident_power = power_in
         self.interval = np.round(np.diff(self.cell_wl)[0], 6)
         self.dim = n_juncs
@@ -728,12 +776,12 @@ class cell_optimization:
     def fitness(self, x):
         x = x.tolist() + self.fixed_bandgaps
         Egs = -np.sort(-np.array(x))  # [0]
-
         eta = (
             getPmax(Egs, self.solar_flux, self.cell_wl, self.interval,
                     x, self.eta_ext,
-                    self.upperE, self.j01_method)
+                    self.upperE, method=self.j01_method)
             / self.incident_power
+
         )
 
         return [-eta]

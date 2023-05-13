@@ -91,18 +91,19 @@ for n_junctions in n_junc_loop:
             photon_flux_cell,
             power_in=light_source.power_density,
             eta_ext=1,
+            j01_method="no_R",
         )
 
         prob = pg.problem(p_init)
         algo = pg.algorithm(
             pg.de(
-                gen=2000,
+                gen=10000,
                 F=1,
                 CR=1,
             )
         )
 
-        pop = pg.population(prob, 20 * n_junctions)
+        pop = pg.population(prob, 40 * n_junctions)
         pop = algo.evolve(pop)
 
         champion_pop = np.sort(pop.champion_x)

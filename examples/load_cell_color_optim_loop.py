@@ -60,7 +60,7 @@ patch_width = 0.75
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]
 
-n_peak_loop = [4, 3, 2]
+n_peak_loop = [2, 3]
 # also run for 1 junc/1 peak but no more junctions.
 
 color_names, color_XYZ = load_colorchecker()  # 24 default Babel colors
@@ -285,9 +285,12 @@ plt.show()
 
 black_cell_eff_bb = []
 black_cell_Eg_bb = []
+
+wl_cell_bb = np.arange(180, 4000, interval)
+
 light_source = LightSource(
     source_type="black body",
-    x=wl_cell,
+    x=wl_cell_bb,
     output_units="photon_flux_per_nm",
     entendue="Sun",
     T=5778,
@@ -306,10 +309,12 @@ for n_junctions in n_junc_loop:
         100
         * getPmax(
             Egs,
-            light_source.spectrum(wl_cell)[1],
-            light_source.spectrum(wl_cell)[0],
+            light_source.spectrum(wl_cell_bb)[1],
+            light_source.spectrum(wl_cell_bb)[0],
             interval,
-            upperE=1240/min(wl_cell)
+            upperE=1240/min(wl_cell_bb),
+            x=None,
+            method="no_R",
         )
         / light_source.power_density
     )
@@ -674,7 +679,7 @@ base = 0
 
 n_junc_loop = [5]
 
-n_peak_loop = [2, 3, 4]
+n_peak_loop = [2, 3]
 
 data_width = 0.6
 
@@ -1076,11 +1081,15 @@ Vmax_w = np.zeros_like(wl_cell)
 
 for i1, Eg in enumerate(1240 / wl_cell):
     Vmax[i1], Imax[i1] = getIVmax(
-        [Eg], photon_flux_cell[1], photon_flux_cell[0], interval
+        [Eg], photon_flux_cell[1], photon_flux_cell[0], interval, x=white_ch_pop,
+        method="perfect_R", n_peaks=2
     )
     Vmax_w[i1], Imax_w[i1] = getIVmax(
-        [Eg], (1 - spec_white) * photon_flux_cell[1], photon_flux_cell[0], interval
+        [Eg], (1 - spec_white) * photon_flux_cell[1], photon_flux_cell[0], interval,
+        x=white_ch_pop,
+        method="perfect_R", n_peaks=2
     )
+
 
 pal = sns.color_palette("husl", 3)
 

@@ -141,12 +141,21 @@ def db_cell_calculation_perfectR(
     limits.append([1240/(x[0]-x[n_peaks]/2), upperE])
 
     limits = np.array(limits)
+
+    # if we have more than 2 peaks, some peaks can overlap. Remove superfluous limits
+    # which cause incorrect integration limits
+    overlapping = np.where(limits[:, 0] > limits[:, 1])[0]
+    limits[overlapping + 1, 0] = limits[overlapping, 1]
+    limits = np.delete(limits, overlapping, axis=0)
+
     limits[limits < 0] = 0 # set negative values to 0
     limits[limits > upperE] = upperE # set values above upperE to upperE
 
     # Since we need previous Eg info have to iterate the Jsc array
-    jscs = np.empty_like(egs, dtype=float)  # Quick way of defining jscs with same dimensions as egs
+    jscs = np.zeros_like(egs, dtype=float)  # Quick way of defining jscs with same
+    # dimensions as egs
     j01s = np.zeros_like(egs, dtype=float)
+
 
     for i, eg in enumerate(egs):
 
@@ -155,7 +164,6 @@ def db_cell_calculation_perfectR(
         loop_limits[0, 0] = np.max([eg, loop_limits[0,0]])
 
         for lims in loop_limits:
-            # print(eg, lims)
             j01s[i] += (pref/rad_eff)*indefinite_integral_J0(lims[0], lims[1])
 
         jscs[i] = (
@@ -236,7 +244,7 @@ def getPmax(
     flux: np.ndarray,
     wl: np.ndarray,
     interval: float,
-    x: Sequence[float],
+    x: Sequence[float] = None,
     rad_eff: int = 1,
     upperE: float = 4.43,
     method: str = "perfect_R",
@@ -275,10 +283,21 @@ def getPmax(
 
     # Find tandem voltage
 
-    vsubcell = kbT * np.log((jscs - minImax) / j01s)
-    vTandem = np.sum(vsubcell)
+    if np.any(minImax > jscs) or np.any(j01s < 0):
+        # vsubcell = kbT * np.log((jscs - minImax) / j01s)
 
-    return vTandem * minImax
+        # vTandem = np.sum(vsubcell)
+        # print("vTandem", vTandem, np.isnan(vTandem), vTandem*(~np.isnan(vTandem)))
+        # print(vsubcell, jscs, minImax, j01s)
+        # print(vTandem*(~np.isnan(vTandem))*np.all(vsubcell > 0))
+        return 0
+
+    else:
+        vsubcell = kbT * np.log((jscs - minImax) / j01s)
+
+        vTandem = np.sum(vsubcell)
+
+        return vTandem * minImax
 
 
 def getIVmax(
@@ -286,7 +305,7 @@ def getIVmax(
     flux: np.ndarray,
     wl: np.ndarray,
     interval: float,
-    x: Sequence[float],
+    x: Sequence[float] = None,
     rad_eff: int = 1,
     upperE: float = 4.43,
     method: str = "perfect_R",
@@ -318,7 +337,8 @@ def getIVmax(
     }
 
     _, _, Vmaxs, Imaxs = db_cell_calculation[method](egs, flux, wl, interval,
-                                                        rad_eff, upperE, x)
+                                                        rad_eff, upperE, x, n_peaks)
+
 
     return Vmaxs, Imaxs
 

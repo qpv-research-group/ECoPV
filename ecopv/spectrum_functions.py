@@ -274,20 +274,22 @@ class make_spectrum_ndip:
 
 
 def spec_to_XYZ(
-    spec: np.ndarray, solar_spec: np.ndarray, cmf: np.ndarray, interval: float
+    spec: np.ndarray, illuminant: np.ndarray, cmf: np.ndarray, interval: float
 ) -> Tuple[float, float, float]:
     """Convert an incident spectrum (spectral power distribution, W m-2 nm-1) to XYZ colour coordinates.
 
     :param spec: The reflectance spectrum
-    :param solar_spec: The solar spectrum (W m-2 nm-1)
-    :param cmf: The CIE colour matching functions at the same wavelengths as spec and solar_spec
-    :param interval: The wavelength interval between each element of spec, solar_spec and cmf
+    :param illuminant: The illuminant (W m-2 nm-1)
+    :param cmf: The CIE colour matching functions at the same wavelengths as spec and
+            the illuminant
+    :param interval: The wavelength interval between each element of spec, solar_spec
+            and cmf
     """
 
-    Ymax = np.sum(interval * cmf[:, 1] * solar_spec)
-    X = np.sum(interval * cmf[:, 0] * solar_spec * spec)
-    Y = np.sum(interval * cmf[:, 1] * solar_spec * spec)
-    Z = np.sum(interval * cmf[:, 2] * solar_spec * spec)
+    Ymax = np.sum(interval * cmf[:, 1] * illuminant)
+    X = np.sum(interval * cmf[:, 0] * illuminant * spec)
+    Y = np.sum(interval * cmf[:, 1] * illuminant * spec)
+    Z = np.sum(interval * cmf[:, 2] * illuminant * spec)
 
     if Ymax == 0:
         return (X, Y, Z)

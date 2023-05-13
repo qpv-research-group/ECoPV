@@ -11,6 +11,9 @@ from os import path
 import pandas as pd
 
 force_rerun = True
+force_rerun_ideal = False
+include_minimum_effs = False
+include_seed_population = False
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
@@ -48,11 +51,14 @@ base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
-
-n_peak_loop = [3, 4]  # loop through these numbers of reflection peaks
+n_peak_loop = [2]  # loop through these numbers of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()
 # load the names and XYZ coordinates of the 24 default Babel colors
+start_ind = 0
+end_ind = len(color_names)
+color_names = color_names[start_ind:end_ind]
+color_XYZ = color_XYZ[start_ind:end_ind]
 
 # Use AM1.5G spectrum:
 light_source = LightSource(
@@ -77,36 +83,42 @@ save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 for n_junctions in n_junc_loop:
 
-    save_loc = save_path + "/champion_pop_{}juncs_{}spec_spd.txt".format(
+    save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
         n_junctions, light_source_name
     )
 
-    if not path.exists(save_loc) or force_rerun:
+    if not path.exists(save_loc) or force_rerun_ideal:
 
         p_init = cell_optimization(
             n_junctions,
             photon_flux_cell,
             power_in=light_source.power_density,
             eta_ext=1,
+            Eg_limits=[0.4, 2.35]
         )
 
         prob = pg.problem(p_init)
         algo = pg.algorithm(
             pg.de(
-                gen=1000,
+                gen=500*n_junctions,
                 F=1,
                 CR=1,
+                ftol=0,
+                xtol=0,
             )
         )
 
-        pop = pg.population(prob, 20 * n_junctions)
+        pop = pg.population(prob, 30 * n_junctions)
         pop = algo.evolve(pop)
 
         champion_pop = np.sort(pop.champion_x)
 
+        print(n_junctions, pop.problem.get_fevals()/(30*n_junctions),
+              -pop.champion_f*100)
+
         np.savetxt(
             save_path
-            + "/champion_pop_{}juncs_{}spec_spd.txt".format(
+            + "/champion_pop_{}juncs_{}spec.txt".format(
                 n_junctions, light_source_name
             ),
             champion_pop,
@@ -122,7 +134,7 @@ if __name__ == "__main__":
 
             Eg_guess = np.loadtxt(
                 save_path
-                + "/champion_pop_{}juncs_{}spec_spd.txt".format(
+                + "/champion_pop_{}juncs_{}spec.txt".format(
                     n_junctions, light_source_name
                 ),
                 ndmin=1,
@@ -139,7 +151,8 @@ if __name__ == "__main__":
                 + str(max_height)
                 + "_"
                 + str(base)
-                + "_spd.txt"
+                + "_"
+                + j01_method + ".txt"
             )
 
             if not path.exists(save_loc) or force_rerun:
@@ -152,6 +165,34 @@ if __name__ == "__main__":
                     "fixed height:",
                     fixed_height,
                 )
+
+                minimum_effs_file = "results/champion_eff_" + type  + str(n_peaks) +\
+                                     "_" + str(n_junctions - 1) + "_" + \
+                                     str(fixed_height) + str(max_height) + "_" + \
+                                     str(base) + "_"  + j01_method + ".txt"
+
+                seed_pop_file = "results/champion_pop_" + type  + str(n_peaks) +\
+                    "_" + str(n_junctions - 1) + "_" + \
+                    str(fixed_height) + str(max_height) + "_" + \
+                    str(base) + "_"  + j01_method + ".txt"
+
+
+                if path.exists(minimum_effs_file) and include_minimum_effs:
+                    minimum_effs = np.loadtxt(minimum_effs_file)#[start_ind:end_ind]
+
+                else:
+                    minimum_effs = np.zeros(len(color_names))
+
+                if path.exists(seed_pop_file) and include_seed_population:
+                    seed_pop = np.loadtxt(seed_pop_file)#[start_ind:end_ind]
+                    print("seeding population")
+                    # seed_pop = seed_pop[:, :(seed_pop.shape[1] - n_junctions + 1)]
+
+                else:
+                    seed_pop = None
+
+                print("minimum efficiencies:", minimum_effs)
+
                 result = multiple_color_cells(
                     color_XYZ,
                     color_names,
@@ -172,6 +213,8 @@ if __name__ == "__main__":
                     plot=False,
                     return_archipelagos=True,
                     j01_method=j01_method,
+                    minimum_eff=minimum_effs,
+                    seed_population=seed_pop,
                 )
 
                 champion_effs = result["champion_eff"]
@@ -191,7 +234,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.txt",
+                    + "_" + j01_method + ".txt",
                     champion_effs,
                 )
                 np.savetxt(
@@ -205,7 +248,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.txt",
+                    + "_" + j01_method + ".txt",
                     champion_pops,
                 )
                 np.save(
@@ -219,7 +262,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.npy",
+                    + "_"  + j01_method + ".npy",
                     final_populations,
                 )
 
@@ -236,7 +279,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.txt"
+                    + "_"  + j01_method + ".txt",
                 )
                 champion_pops = np.loadtxt(
                     "results/champion_pop_"
@@ -249,37 +292,10 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.txt"
+                    + "_"  + j01_method + ".txt",
                 )
                 champion_bandgaps = champion_pops[:, -n_junctions:]
 
-                champion_effs_old = np.loadtxt(
-                    "results/champion_eff_"
-                    + type
-                    + str(n_peaks)
-                    + "_"
-                    + str(n_junctions)
-                    + "_"
-                    + str(fixed_height)
-                    + str(max_height)
-                    + "_"
-                    + str(base)
-                    + ".txt"
-                )
-                champion_pops_old = np.loadtxt(
-                    "results/champion_pop_"
-                    + type
-                    + str(n_peaks)
-                    + "_"
-                    + str(n_junctions)
-                    + "_"
-                    + str(fixed_height)
-                    + str(max_height)
-                    + "_"
-                    + str(base)
-                    + ".txt"
-                )
-                champion_bandgaps_old = champion_pops_old[:, -n_junctions:]
 
             plt.figure()
             plt.plot(
@@ -290,17 +306,10 @@ if __name__ == "__main__":
                 linestyle="none",
                 label="Power density",
             )
+
             # plt.plot(
-            #     color_names,
-            #     champion_effs_old,
-            #     "x",
-            #     mfc="none",
-            #     linestyle="none",
-            #     label="Photon flux",
+            #     color_names, single_J_result["eta"], "o", mfc="none", label="1J result"
             # )
-            plt.plot(
-                color_names, single_J_result["eta"], "o", mfc="none", label="1J result"
-            )
 
             plt.xticks(rotation=45)
             plt.legend()
@@ -319,17 +328,10 @@ if __name__ == "__main__":
                 linestyle="none",
                 label="Power density",
             )
+
             # plt.plot(
-            #     color_names,
-            #     champion_bandgaps_old,
-            #     marker="x",
-            #     mfc="none",
-            #     linestyle="none",
-            #     label="Photon flux",
+            #     color_names, single_J_result["Eg"], "o", mfc="none", label="1J result"
             # )
-            plt.plot(
-                color_names, single_J_result["Eg"], "o", mfc="none", label="1J result"
-            )
             plt.xticks(rotation=45)
             plt.legend()
             plt.ylabel("Bandgap (eV)")
