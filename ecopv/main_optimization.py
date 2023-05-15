@@ -14,6 +14,7 @@ from os.path import join
 from ecopv.optimization_functions import reorder_peaks, getPmax
 from ecopv.spectrum_functions import (
     load_cmf,
+    load_D50,
     spec_to_XYZ,
     convert_xyY_to_XYZ,
     convert_xyY_to_Lab,
@@ -119,6 +120,7 @@ def multiple_color_cells(
     j01_method: str = "perfect_R",
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
+    illuminant: str = "D50",
 ) -> dict:
 
     """Optimize color and efficiency of multiple colored cells using pygmo2's moaed (multi-objective differential evolution)
@@ -157,6 +159,8 @@ def multiple_color_cells(
         e.g. the result of the optimization with fewer junctions. If only a partial
         population is provided, the first n elements of the decision vector will be
         set.
+    :param illuminant: illuminant to use for calculating the XYZ coordinates of the
+        colours from the spectrum.
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
             each color), "champion_pop" (the champion population which maximizes the efficiency while staying within the
@@ -178,6 +182,9 @@ def multiple_color_cells(
 
     if minimum_eff is None:
         minimum_eff = np.zeros(len(color_XYZ))
+
+    if illuminant == "D50":
+        illuminant = load_D50(photon_flux[0])
 
     if seed_population is None:
         seed_population = [None] * len(color_XYZ)
@@ -330,7 +337,7 @@ def multiple_color_cells(
 
                         color_XYZ_found[k1] = spec_to_XYZ(
                             spec,
-                            hc * photon_flux[1] / (photon_flux[0] * 1e-9),
+                            illuminant,
                             cmf,
                             interval,
                         )
@@ -387,7 +394,7 @@ def multiple_color_cells(
 
                     color_XYZ_found[k1] = spec_to_XYZ(
                         spec,
-                        h * c * photon_flux[1] / (photon_flux[0] * 1e-9),
+                        illuminant,
                         cmf,
                         interval,
                     )
@@ -586,6 +593,7 @@ class color_function_mobj:
         Eg_black=None,
         fixed_bandgaps=None,
         j01_method="perfect_R",
+        illuminant="D50",
         **kwargs
     ):
 
@@ -620,6 +628,12 @@ class color_function_mobj:
         self.add_args = kwargs
         self.j01_method = j01_method
 
+        if illuminant == "D50":
+            self.illuminant = load_D50(self.col_wl)
+
+        else:
+            self.illuminant = illuminant
+
         if fixed_bandgaps is not None:
             self.fixed_bandgaps = fixed_bandgaps
 
@@ -636,7 +650,7 @@ class color_function_mobj:
 
         R_spec = self.spec_func(x, self.n_peaks, wl=self.col_wl, **self.add_args)
 
-        XYZ = np.array(spec_to_XYZ(R_spec, self.solar_spec, self.cmf, self.interval))
+        XYZ = np.array(spec_to_XYZ(R_spec, self.illuminant, self.cmf, self.interval))
         delta = delta_XYZ(self.target_color, XYZ)
 
         R_spec_cell = self.spec_func(x, self.n_peaks, wl=self.cell_wl, **self.add_args)
@@ -693,7 +707,8 @@ class color_function_mobj:
 
 
 class color_optimization:
-    def __init__(self, n_peaks, tg, photon_flux, spec_func=gen_spectrum_ndip):
+    def __init__(self, n_peaks, tg, photon_flux, spec_func=gen_spectrum_ndip,
+                 illuminant="D50"):
 
         self.n_peaks = n_peaks
         self.target_color = tg
@@ -704,11 +719,16 @@ class color_optimization:
         self.solar_spec = hc * photon_flux[1] / (self.col_wl * 1e-9)
         self.interval = np.round(np.diff(self.col_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
+        if illuminant == "D50":
+            self.illuminant = load_D50(self.col_wl)
+
+        else:
+            self.illuminant = illuminant
 
     def fitness(self, x):
 
         R_spec = self.spec_func(x, self.n_peaks, wl=self.col_wl)
-        XYZ = np.array(spec_to_XYZ(R_spec, self.solar_spec, self.cmf, self.interval))
+        XYZ = np.array(spec_to_XYZ(R_spec, self.illuminant, self.cmf, self.interval))
         delta = delta_XYZ(self.target_color, XYZ)
 
         return [delta]
@@ -809,6 +829,7 @@ def plot_outcome(
     name: str,
     Egs: Sequence = None,
     ax=None,
+    illuminant="D50",
 ):
     """Function to plot the outcome (reflection spectrum, target and found colour) of a combined cell efficiency/colour
     optimization, or a colour-only optimization.
@@ -819,13 +840,17 @@ def plot_outcome(
     :param name: plot title
     :param Egs: list of bandgaps of the cell (optional)
     :param ax: matplotlib axis to plot on (optional)
+    :param illuminant: illuminant to use for the conversion to sRGB (optional)
     """
 
     cmf = load_cmf(photon_flux_cell[0])
     interval = np.round(np.diff(photon_flux_cell[0])[0], 6)
 
+    if illuminant == "D50":
+        illuminant = load_D50(photon_flux_cell[0])
+
     found_xyz = spec_to_XYZ(
-        spec, hc * photon_flux_cell[1] / (photon_flux_cell[0] * 1e-9), cmf, interval
+        spec, illuminant, cmf, interval
     )
     color_xyz_f = XYZColor(*found_xyz)
     color_xyz_t = XYZColor(*target)

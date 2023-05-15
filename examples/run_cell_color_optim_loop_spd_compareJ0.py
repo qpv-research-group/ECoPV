@@ -130,13 +130,21 @@ for n_peaks in n_peak_loop:
             )
             champion_bandgaps = champion_pops[:, -n_junctions:]
 
-        plt.plot(
-            color_names,
-            100*(champion_effs[1]-champion_effs[0])/champion_effs[1],
-            marker=shapes[l1],
-            mfc="none",
-            linestyle="none",
-        )
+            plt.plot(
+                color_names,
+                champion_effs[l1],
+                marker=shapes[l1],
+                mfc="none",
+                linestyle="none",
+            )
+
+        # plt.plot(
+        #     color_names,
+        #     100*(champion_effs[1]-champion_effs[0])/champion_effs[1],
+        #     marker=shapes[l1],
+        #     mfc="none",
+        #     linestyle="none",
+        # )
 
         plt.xticks(rotation=45)
         plt.legend()

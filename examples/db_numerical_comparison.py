@@ -40,10 +40,10 @@ photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 for Egs in black_cell_Eg:
 
-    V = np.arange(0, np.sum(Egs)-len(Egs)*0.1, 0.01)
+    V = np.arange(0, np.sum(Egs), 0.001)
     opts['voltages'] = V
 
-    db_junctions = [Junction(kind='DB', Eg=Eg, A=1, R_shunt=1e30, n=np.sqrt(2)) for
+    db_junctions = [Junction(kind='DB', Eg=Eg, A=1, R_shunt=1e30, n=1) for
                     Eg in
                     Egs[::-1]]
     solar_cell_db_A1 = SolarCell(db_junctions)
@@ -74,6 +74,8 @@ for Egs in black_cell_Eg:
     numerical_eta = solar_cell_db_A1.iv["Eta"]*100
     print(analytic_eta, numerical_eta)
     print(100*(analytic_eta - numerical_eta)/analytic_eta)
+    print("V", vTandem, solar_cell_db_A1.iv["Vmpp"])
+    print("I", minImax/10, solar_cell_db_A1.iv["Impp"]/10)
 
     plt.figure()
     plt.plot(solar_cell_db_A1.iv["IV"][0], solar_cell_db_A1.iv["IV"][1]/10)
@@ -84,3 +86,5 @@ for Egs in black_cell_Eg:
     plt.plot(solar_cell_db_A1.iv["Vmpp"], solar_cell_db_A1.iv["Impp"]/10, 'o')
     plt.plot()
     plt.show()
+
+

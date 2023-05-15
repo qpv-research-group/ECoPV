@@ -3,6 +3,7 @@ from typing import Sequence, Tuple
 import pathlib
 from scipy.interpolate import interp1d
 from os.path import join
+from solcore.constants import h, c
 
 from colormath.color_objects import (
     LabColor,
@@ -12,7 +13,7 @@ from colormath.color_objects import (
 from colormath.color_conversions import convert_color
 
 current_path = pathlib.Path(__file__).parent.resolve()
-
+hc = h * c
 
 def load_cmf(wl: np.ndarray) -> np.ndarray:
     """Load the CIE 1931 2 degree standard observer color matching functions and interpolate them to the given wavelengths"""
@@ -326,3 +327,10 @@ def XYZ_from_pop_dips(pop, n_peaks, photon_flux, interval):
     )
 
     return XYZ
+
+def load_D50(wl):
+
+    data = np.loadtxt(join(current_path, "data", "CIE_std_illum_D50.csv"),
+                      delimiter=",")
+
+    return np.interp(wl, data[:,0], data[:,1])
