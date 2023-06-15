@@ -137,7 +137,6 @@ def db_cell_calculation_perfectR(
             limits.append([1240/(x[n_peaks-i1]-x[2*n_peaks-i1]/2), 1240/(x[
                   n_peaks-(i1+1)]+x[2*n_peaks-(i1+1)]/2)])
 
-
     limits.append([1240/(x[0]-x[n_peaks]/2), upperE])
 
     limits = np.array(limits)
@@ -155,7 +154,6 @@ def db_cell_calculation_perfectR(
     jscs = np.zeros_like(egs, dtype=float)  # Quick way of defining jscs with same
     # dimensions as egs
     j01s = np.zeros_like(egs, dtype=float)
-
 
     for i, eg in enumerate(egs):
 

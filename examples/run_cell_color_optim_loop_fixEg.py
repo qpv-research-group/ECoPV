@@ -3,6 +3,7 @@ from ecopv.main_optimization import (
     multiple_color_cells,
     cell_optimization,
 )
+from ecopv.plot_utilities import add_colour_patches, apply_formatting
 from ecopv.optimization_functions import getPmax, getIVmax
 from ecopv.spectrum_functions import gen_spectrum_ndip
 import numpy as np
@@ -12,6 +13,11 @@ import pygmo as pg
 from os import path
 import xarray as xr
 import seaborn as sns
+
+from matplotlib import rc
+
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 14})
+
 
 force_rerun = False
 
@@ -37,10 +43,11 @@ max_trials_col = (
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
+j01_method = "perfect_R"
 
 max_height = (
     1  # maximum height of reflection peaks; fixed at this value of fixed_height = True
@@ -51,11 +58,14 @@ n_junc_loop = [0, 1, 2]  # loop through these numbers of junctions
 
 n_peak_loop = [2]  # loop through these numbers of reflection peaks
 
+patch_width = 0.75
+
 (
     color_names,
     color_XYZ,
 ) = (
-    load_colorchecker()
+    load_colorchecker(source="BabelColor", output_coords="XYZ",
+                      illuminant=light_source_name)
 )  # load the names and XYZ coordinates of the 24 default Babel colors
 
 Y = np.hstack((color_XYZ[:, 1], [0]))
@@ -79,6 +89,7 @@ photon_flux_color = photon_flux_cell[
 ]
 
 shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
+linetypes = ['-', '--']
 
 loop_n = 0
 
@@ -151,7 +162,7 @@ if __name__ == "__main__":
 
                 save_name = (
                     "results/champion_eff_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -178,7 +189,7 @@ if __name__ == "__main__":
                         photon_flux_cell,
                         n_peaks=n_peaks,
                         n_junctions=n_junctions,
-                        type=type,
+                        R_type=R_type,
                         fixed_height=fixed_height,
                         n_trials=n_trials,
                         initial_iters=initial_iters,
@@ -191,7 +202,8 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         fixed_bandgaps=fixed_bandgaps,
                         plot=False,
-                        return_archipelagos=True
+                        power_in=light_source.power_density,
+                        return_archipelagos=True,
                     )
 
                     champion_effs = result["champion_eff"]
@@ -201,7 +213,7 @@ if __name__ == "__main__":
 
                     np.savetxt(
                         "results/champion_eff_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -215,7 +227,7 @@ if __name__ == "__main__":
                     )
                     np.savetxt(
                         "results/champion_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -229,7 +241,7 @@ if __name__ == "__main__":
                     )
                     np.save(
                         "results/final_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -253,7 +265,7 @@ if __name__ == "__main__":
 
                     champion_effs = np.loadtxt(
                         "results/champion_eff_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -266,7 +278,7 @@ if __name__ == "__main__":
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -286,7 +298,7 @@ if __name__ == "__main__":
 
     unconst_1j = np.loadtxt(
         "results/champion_eff_"
-        + type
+        + R_type
         + str(2)
         + "_"
         + str(1)
@@ -295,11 +307,11 @@ if __name__ == "__main__":
         + str(max_height)
         + "_"
         + str(base)
-        + "_spd.txt"
+        + "_" + j01_method + light_source_name + ".txt",
     )
     unconst_2j = np.loadtxt(
         "results/champion_eff_"
-        + type
+        + R_type
         + str(2)
         + "_"
         + str(2)
@@ -308,11 +320,11 @@ if __name__ == "__main__":
         + str(max_height)
         + "_"
         + str(base)
-        + "_spd.txt"
+        + "_" + j01_method + light_source_name + ".txt",
     )
     unconst_3j = np.loadtxt(
         "results/champion_eff_"
-        + type
+        + R_type
         + str(2)
         + "_"
         + str(3)
@@ -321,7 +333,7 @@ if __name__ == "__main__":
         + str(max_height)
         + "_"
         + str(base)
-        + "_spd.txt"
+        + "_" + j01_method + light_source_name + ".txt",
     )
 
     unconst = [unconst_1j, unconst_2j, unconst_3j]
@@ -346,9 +358,10 @@ if __name__ == "__main__":
         unconst_xr.append(xr.concat([eff_xr_col, eff_xr_bw], dim="color"))
 
     pal = sns.color_palette("husl", 3)
-    shapes = ["o", "+", "^", ".", "*", "v", "s", "x"]
+    # pal = np.array([pal[1], pal[0], pal[2]])
+    shapes = ["o", "*", "^", ".", "*", "v", "s", "x"]
 
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(14, 5.5))
 
     black_Eg = [[1.12], [1.72918698, 1.12], [2.0054986, 1.4983, 1.12]]
 
@@ -361,8 +374,9 @@ if __name__ == "__main__":
         eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
 
         black_cell_eff = (
-            getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval, upperE=1240/min(wl_cell)) / 10
-        )
+            getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                    upperE=1240/min(wl_cell), method="no_R") / 10)
+
         print(black_cell_eff)
 
         eff_xr_bw = xr.DataArray(
@@ -378,10 +392,10 @@ if __name__ == "__main__":
             eff_xr.data,
             marker=shapes[i1],
             linestyle="none",
-            alpha=0.5,
+            alpha=0.75,
             label=str(i1 + 1) + " junctions",
             color=pal[i1],
-            markersize=7,
+            markersize=9,
         )
 
         ax.plot(
@@ -392,8 +406,10 @@ if __name__ == "__main__":
             color="k",
             alpha=0.5,
             linestyle="none",
-            markersize=5,
+            markersize=7,
         )
+
+        print("difference", 100*(unconst_xr[i1].data - eff_xr.data)/unconst_xr[i1].data)
 
         chp = np.vstack(champion_pop_array[i1]).astype(float)
 
@@ -410,6 +426,12 @@ if __name__ == "__main__":
 
         pop_xr = xr.concat([pop_xr_col, pop_xr_bw], dim="color")
 
+        bw_data = xr.DataArray(data=np.array([[0, 0, 0, 0] + black_Eg[i1][:-1][
+                                                             ::-1]]), \
+                               dims=["color", "x"], coords={"color": ["Black"]})
+
+        pop_xr = xr.concat([pop_xr, bw_data], dim="color")
+
         I_arr = np.zeros((len(eff_xr.color.data), i1 + 1))
 
         for l1, lab in enumerate(col_names_all):
@@ -417,24 +439,32 @@ if __name__ == "__main__":
             spec = gen_spectrum_ndip(pop.data, n_peaks, wl_cell)
             Egs = fixed_bandgaps + pop[-i1:].data.tolist() if i1 > 0 else fixed_bandgaps
             Egs = -np.sort(-np.array(Egs))
+
             _, I_arr[l1] = getIVmax(
-                Egs, (1 - spec) * photon_flux_cell[1], wl_cell, interval
+                Egs, (1 - spec) * photon_flux_cell[1], wl_cell, interval, pop,
+                n_peaks=2,
             )
 
-        I_arr[-1] = getIVmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval)[1]
+        I_arr[-1] = getIVmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                             method="no_R")[1]
 
-        if i1 == 2:
-            for l1 in range(i1 + 1):
+        if i1 > 0:
+            for l1 in range(1, i1 + 1):
+                print("l1", l1)
                 ax2.plot(
                     eff_xr.color.data,
-                    I_arr[:, l1] / 10,
+                    #I_arr[:, l1] / 10,
+                    pop_xr[:, -l1:],
                     marker=shapes[l1],
-                    color=pal[l1],
+                    color=pal[i1],
+                    linestyle=linetypes[i1-1]
                 )
 
-    ax.legend()
-    ax2.legend(["Junction 1", "Junction 2", "Junction 3"])
+                print(pop_xr[:, -l1:])
 
+    ax.legend(loc=(0.32, 0.05))
+    # ax2.legend(["Junction 1", "Junction 2", "Junction 3"])
+    # ax2.legend(["2 junctions", "3 junctions"])
     ax.xaxis.set_ticks(ax.get_xticks())
     ax.set_xticklabels(
         eff_xr.color.data, rotation=45, ha="right", rotation_mode="anchor"
@@ -443,7 +473,16 @@ if __name__ == "__main__":
         eff_xr.color.data, rotation=45, ha="right", rotation_mode="anchor"
     )
     ax.set_ylabel("Efficiency (%)")
-    ax2.set_ylabel(r"J$_{sc}$ (mA/cm$^2$)")
+    # ax2.set_ylabel(r"J$_{sc}$ (mA/cm$^2$)")
+    ax2.set_ylabel(r"Optimal $E_g$ (eV)")
+    ax.set_ylim(21,)
+    ax2.set_ylim(1.35,)
+
+    apply_formatting(ax, color_labels=eff_xr.color.data)
+    apply_formatting(ax2, color_labels=eff_xr.color.data)
+
+    add_colour_patches(ax, patch_width, eff_xr.color.data)
+    add_colour_patches(ax2, patch_width, eff_xr.color.data)
 
     plt.tight_layout()
     plt.show()

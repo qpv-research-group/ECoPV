@@ -22,7 +22,7 @@ max_trials_col = 5 * add_iters
 # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) or not
 j01_method = "perfect_R"
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         photon_flux_cell,
         n_peaks=n_peaks,
         n_junctions=n_junctions,
-        type=type,
+        R_type=R_type,
         fixed_height=fixed_height,
         n_trials=n_trials,
         initial_iters=initial_iters,

@@ -10,7 +10,7 @@ import pygmo as pg
 from os import path
 import pandas as pd
 
-force_rerun = True
+force_rerun = False
 force_rerun_ideal = False
 include_minimum_effs = False
 include_seed_population = False
@@ -38,7 +38,7 @@ max_trials_col = 3 * add_iters
 # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
@@ -51,16 +51,16 @@ base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
-n_peak_loop = [3, 4]  # loop through these numbers of reflection peaks
+n_peak_loop = [2, 3, 4]  # loop through these numbers of reflection peaks
 
-color_names, color_XYZ = load_colorchecker()
+color_names, color_XYZ = load_colorchecker(illuminant="AM1.5g", output_coords="XYZ")
 # load the names and XYZ coordinates of the 24 default Babel colors
 start_ind = 0
 end_ind = len(color_names)
 color_names = color_names[start_ind:end_ind]
 color_XYZ = color_XYZ[start_ind:end_ind]
 
-# Use AM1.5G spectrum:
+# Use AM1.5G spectrum for cell calculations:
 light_source = LightSource(
     source_type="standard",
     version=light_source_name,
@@ -69,10 +69,6 @@ light_source = LightSource(
 )
 
 photon_flux_cell = np.array(light_source.spectrum(wl_cell))
-
-photon_flux_color = photon_flux_cell[
-    :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)
-]
 
 shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 
@@ -127,9 +123,10 @@ for n_junctions in n_junc_loop:
 
 if __name__ == "__main__":
     # Need this __main__ construction because otherwise the parallel running of the different islands (n_trials) may throw an error
+    champion_effs_table = np.zeros((len(n_peak_loop), len(n_junc_loop), len(color_names)))
 
-    for n_peaks in n_peak_loop:
-        for n_junctions in n_junc_loop:
+    for i1, n_peaks in enumerate(n_peak_loop):
+        for j1, n_junctions in enumerate(n_junc_loop):
             champion_bandgaps = np.zeros((len(color_names), n_junctions))
 
             Eg_guess = np.loadtxt(
@@ -142,7 +139,7 @@ if __name__ == "__main__":
 
             save_loc = (
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -152,7 +149,7 @@ if __name__ == "__main__":
                 + "_"
                 + str(base)
                 + "_"
-                + j01_method + ".txt"
+                + j01_method + light_source_name + ".txt"
             )
 
             if not path.exists(save_loc) or force_rerun:
@@ -166,15 +163,15 @@ if __name__ == "__main__":
                     fixed_height,
                 )
 
-                minimum_effs_file = "results/champion_eff_" + type  + str(n_peaks) +\
+                minimum_effs_file = "results/champion_eff_" + R_type  + str(n_peaks) +\
                                      "_" + str(n_junctions - 1) + "_" + \
                                      str(fixed_height) + str(max_height) + "_" + \
-                                     str(base) + "_"  + j01_method + ".txt"
+                                     str(base) + "_"  + j01_method + light_source_name + ".txt"
 
-                seed_pop_file = "results/champion_pop_" + type  + str(n_peaks) +\
+                seed_pop_file = "results/champion_pop_" + R_type  + str(n_peaks) +\
                     "_" + str(n_junctions - 1) + "_" + \
                     str(fixed_height) + str(max_height) + "_" + \
-                    str(base) + "_"  + j01_method + ".txt"
+                    str(base) + "_"  + j01_method + light_source_name + ".txt"
 
 
                 if path.exists(minimum_effs_file) and include_minimum_effs:
@@ -199,7 +196,7 @@ if __name__ == "__main__":
                     photon_flux_cell,
                     n_peaks=n_peaks,
                     n_junctions=n_junctions,
-                    type=type,
+                    R_type=R_type,
                     fixed_height=fixed_height,
                     n_trials=n_trials,
                     initial_iters=initial_iters,
@@ -211,10 +208,12 @@ if __name__ == "__main__":
                     max_height=max_height,
                     Eg_black=Eg_guess,
                     plot=False,
+                    power_in=light_source.power_density,
                     return_archipelagos=True,
                     j01_method=j01_method,
                     minimum_eff=minimum_effs,
                     seed_population=seed_pop,
+                    illuminant=light_source_name,
                 )
 
                 champion_effs = result["champion_eff"]
@@ -225,7 +224,7 @@ if __name__ == "__main__":
 
                 np.savetxt(
                     "results/champion_eff_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -234,12 +233,12 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + ".txt",
+                    + "_" + j01_method + light_source_name + ".txt",
                     champion_effs,
                 )
                 np.savetxt(
                     "results/champion_pop_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -248,12 +247,12 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + ".txt",
+                    + "_" + j01_method + light_source_name + ".txt",
                     champion_pops,
                 )
                 np.save(
                     "results/final_pop_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -262,7 +261,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + ".npy",
+                    + "_"  + j01_method + light_source_name + ".npy",
                     final_populations,
                 )
 
@@ -270,7 +269,7 @@ if __name__ == "__main__":
 
                 champion_effs = np.loadtxt(
                     "results/champion_eff_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -279,11 +278,11 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + ".txt",
+                    + "_"  + j01_method + light_source_name + ".txt",
                 )
                 champion_pops = np.loadtxt(
                     "results/champion_pop_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -292,10 +291,12 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + ".txt",
+                    + "_" + j01_method + light_source_name + ".txt",
                 )
                 champion_bandgaps = champion_pops[:, -n_junctions:]
 
+
+            champion_effs_table[i1, j1] = champion_effs
 
             plt.figure()
             plt.plot(
@@ -338,3 +339,20 @@ if __name__ == "__main__":
             plt.title("Peaks:" + str(n_peaks) + "Junctions:" + str(n_junctions))
             plt.tight_layout()
             plt.show()
+
+
+import pandas as pd
+
+color_names, color_xyY = load_colorchecker(illuminant="AM1.5g", output_coords="xyY")
+
+data = {'index': np.arange(1, len(color_names)+1), 'name': color_names}
+
+df = pd.DataFrame(data)
+
+df['x'] = color_xyY[:, 0]
+df['y'] = color_xyY[:, 1]
+df['Y'] = color_xyY[:, 2]
+
+df['1J'], df['2J'], df['3J'], df['4J'], df['5J'], df['6J'] = champion_effs_table[0]
+
+df.to_csv('AM15G_xyY_ColorChecker_optimized.csv', index=False)

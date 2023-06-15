@@ -62,7 +62,8 @@ for j, yc in enumerate(ys):
 # plt.show()
 print("Inside gamut:", np.sum(is_inside))
 
-col_thresh = 0.008  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
+col_thresh = 0.008  # for a wavelength interval of 0.1, minimum achievable color
+# error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
 
 acceptable_eff_change = 1e-3  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
@@ -86,7 +87,7 @@ max_trials_col = (
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
@@ -108,10 +109,6 @@ light_source = LightSource(
 
 photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
-photon_flux_color = photon_flux_cell[
-    :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)
-]
-
 shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 
 loop_n = 0
@@ -119,38 +116,37 @@ loop_n = 0
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
-
-save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
-    n_junctions, light_source_name
-)
-
-level_limits = [[44, 48], [42, 46], [39, 42]]
-
-if not path.exists(save_loc) or force_rerun:
-
-    p_init = cell_optimization(
-        n_junctions, photon_flux_cell, power_in=light_source.power_density, eta_ext=1
-    )
-
-    prob = pg.problem(p_init)
-    algo = pg.algorithm(
-        pg.de(
-            gen=1000,
-            F=1,
-            CR=1,
-        )
-    )
-
-    pop = pg.population(prob, 20 * n_junctions)
-    pop = algo.evolve(pop)
-
-    champion_pop = np.sort(pop.champion_x)
-
-    np.savetxt(
-        save_path
-        + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name),
-        champion_pop,
-    )
+#
+# save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
+#     n_junctions, light_source_name
+# )
+#
+# level_limits = [[44, 48], [42, 46], [39, 42]]
+#
+# if not path.exists(save_loc) or force_rerun:
+#
+#     p_init = cell_optimization(
+#         n_junctions, photon_flux_cell, power_in=light_source.power_density, eta_ext=1
+#     )
+#     prob = pg.problem(p_init)
+#     algo = pg.algorithm(
+#         pg.de(
+#             gen=1000,
+#             F=1,
+#             CR=1,
+#         )
+#     )
+#
+#     pop = pg.population(prob, 20 * n_junctions)
+#     pop = algo.evolve(pop)
+#
+#     champion_pop = np.sort(pop.champion_x)
+#
+#     np.savetxt(
+#         save_path
+#         + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name),
+#         champion_pop,
+#     )
 
 
 if __name__ == "__main__":
@@ -208,7 +204,7 @@ if __name__ == "__main__":
                             photon_flux_cell,
                             n_peaks=n_peaks,
                             n_junctions=n_junctions,
-                            type=type,
+                            R_type=R_type,
                             fixed_height=fixed_height,
                             n_trials=n_trials,
                             initial_iters=initial_iters,

@@ -190,7 +190,7 @@ class make_spectrum_ndip:
         self,
         n_peaks: int = 2,
         target: np.ndarray = np.array([0, 0, 0]),
-        type: str = "sharp",
+        R_type: str = "sharp",
         fixed_height: bool = True,
         w_bounds: Sequence[float] = None,
         h_bounds: Sequence[float] = [0.01, 1],
@@ -200,13 +200,13 @@ class make_spectrum_ndip:
 
         :param n_peaks: The number of peaks in the reflection spectrum
         :param target: The XYZ coordinates of the target colour, used to set the bounds on the peak widths
-        :param type: The type of spectrum to be generated. Current options are "sharp" and "gauss"
+        :param R_type: The type of spectrum to be generated. Current options are "sharp" and "gauss"
         :param fixed_height: Whether the peaks should have a fixed height
         :param w_bounds: The bounds on the peak widths. If None, the bounds will be set automatically
         :param h_bounds: The bounds on the peak heights. Only used if fixed_height is False
         """
 
-        self.c_bounds = [380, 780]
+        self.c_bounds = [380, 730]
         self.fixed_height = fixed_height
         self.n_peaks = n_peaks
 
@@ -214,7 +214,8 @@ class make_spectrum_ndip:
             if fixed_height:
                 self.w_bounds = [
                     0, # lower width bound
-                    np.max([120 / n_peaks, (350 / n_peaks) * target[1]]), # upper width bound
+                    np.max([160 / n_peaks, (350 / n_peaks) * target[1]]), # upper
+                    # width bound
                 ]
                 # width bounds are generated based on the Y (luminance) of the target colour and the number of peaks.
                 # This was done by looking at the approximate number of photos needed to create a colour of a certain Y
@@ -228,7 +229,7 @@ class make_spectrum_ndip:
         else:
             self.w_bounds = w_bounds
 
-        if type == "sharp":
+        if R_type == "sharp":
             if fixed_height:
                 self.n_spectrum_params = 2 * n_peaks
                 self.spectrum_function = gen_spectrum_ndip
@@ -238,7 +239,7 @@ class make_spectrum_ndip:
                 self.n_spectrum_params = 3 * n_peaks
                 self.spectrum_function = gen_spectrum_ndip_varyheight
 
-        elif type == "gauss":
+        elif R_type == "gauss":
             if fixed_height:
                 self.n_spectrum_params = 2 * n_peaks
                 self.spectrum_function = gen_spectrum_ngauss
@@ -287,10 +288,10 @@ def spec_to_XYZ(
             and cmf
     """
 
-    Ymax = np.sum(interval * cmf[:, 1] * illuminant)
-    X = np.sum(interval * cmf[:, 0] * illuminant * spec)
-    Y = np.sum(interval * cmf[:, 1] * illuminant * spec)
-    Z = np.sum(interval * cmf[:, 2] * illuminant * spec)
+    Ymax = np.trapz(cmf[:, 1] * illuminant, dx=interval)
+    X = np.trapz(cmf[:, 0] * illuminant * spec, dx=interval)
+    Y = np.trapz(cmf[:, 1] * illuminant * spec, dx=interval)
+    Z = np.trapz(cmf[:, 2] * illuminant * spec, dx=interval)
 
     if Ymax == 0:
         return (X, Y, Z)
@@ -331,6 +332,13 @@ def XYZ_from_pop_dips(pop, n_peaks, photon_flux, interval):
 def load_D50(wl):
 
     data = np.loadtxt(join(current_path, "data", "CIE_std_illum_D50.csv"),
+                      delimiter=",")
+
+    return np.interp(wl, data[:,0], data[:,1])
+
+def load_D65(wl):
+
+    data = np.loadtxt(join(current_path, "data", "CIE_std_illum_D65.csv"),
                       delimiter=",")
 
     return np.interp(wl, data[:,0], data[:,1])

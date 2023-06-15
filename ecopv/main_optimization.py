@@ -5,20 +5,22 @@ from colour.difference import delta_E_CIE2000
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from typing import Sequence, Callable, Tuple
+from solcore.light_source import LightSource
 
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
 from solcore.constants import h, c
 import pathlib
-from os.path import join
+from os.path import join, dirname
 from ecopv.optimization_functions import reorder_peaks, getPmax
 from ecopv.spectrum_functions import (
     load_cmf,
     load_D50,
+    load_D65,
     spec_to_XYZ,
+    convert_XYZ_to_Lab,
     convert_xyY_to_XYZ,
     convert_xyY_to_Lab,
-    convert_XYZ_to_Lab,
     make_spectrum_ndip,
     gen_spectrum_ndip,
     delta_XYZ,
@@ -36,10 +38,24 @@ current_path = pathlib.Path(__file__).parent.resolve()
 # - consistent spelling colour/color and optimi(z/s)ation
 
 
-def load_colorchecker(output_coords: str = "XYZ") -> Tuple[np.ndarray, np.ndarray]:
+def load_colorchecker(output_coords: str = "XYZ",
+                      source: str = "BabelColor",
+                      illuminant = "AM1.5g",) -> Tuple[np.ndarray, np.ndarray]:
     """Load the colorchecker data from the csv file and return is as an array of coordinates
 
-    :param output_coords: The color space to return the data in. Can be "XYZ", "xyY", or "Lab"
+    :param output_coords: The color space to return the data in. Can be "XYZ" or "xyY"
+    :param source: The source of the data. Can be "BabelColor" (default)  or
+        "1J_paper". The BabelColor data uses reflectance spectra from
+        https://babelcolor.com/index_htm_files/ColorChecker_RGB_and_spectra.zip
+        (April 2012) to calculate colour coordinates depending on the illuminant. The
+        1J data is the xyY data from Table 1 in https://doi.org/10.1039/c8ee03161d,
+        so setting the illuminant has no effect.
+    :param illuminant: The illuminant to use for the XYZ conversion. Can be "AM1.5g",
+         "D50", or a temperature (will be interpreted as the temperature of a
+         Sun-like black body). Alternatively, pass an array for any
+         other illuminant with the relative spectral power distribution at 5 nm
+         intervals from 380 nm to 730 nm (inclusive of start and endpoint). This only
+         has an effect is source="BabelColor".
 
     :return: a list of color names, array of color coordinates
 
@@ -74,26 +90,99 @@ def load_colorchecker(output_coords: str = "XYZ") -> Tuple[np.ndarray, np.ndarra
         ]
     )
 
-    color_xyY = np.loadtxt(
-        join(current_path, "data", "paper_colors.csv"),
-        skiprows=1,
-        usecols=[2, 3, 4],
-        delimiter=",",
-    )
+    if source == "BabelColor":
 
-    if output_coords == "xyY":
-        return color_names, color_xyY
+        color_R = np.loadtxt(join(dirname(current_path), "ecopv", "data",
+                        "ColorChecker_R_BabelColor.csv"), delimiter=',',
+                             encoding='utf-8-sig')
+        # Measured reflectance of the ColorChecker colours. Downlaoded from:
+        # https://babelcolor.com/colorchecker-2.htm
+        # Based on measurements of 30 different ColorChecker cards.
 
-    elif output_coords == "XYZ":
-        color_XYZ = np.array([convert_xyY_to_XYZ(x) for x in color_xyY])
-        return color_names, color_XYZ
+        # Convert these reflectance values to XYZ using the chosen illuminant,
+        # and then to xyY if necessary.
 
-    elif output_coords == "Lab":
-        color_Lab = np.array([convert_xyY_to_Lab(x) for x in color_xyY])
-        return color_names, color_Lab
+        wl = color_R[0]
+        R = color_R[1:]
+
+        cmf = load_cmf(wl)
+
+        if illuminant == "AM1.5g":
+
+            illum_array = np.array(
+                LightSource(
+                    source_type="standard",
+                    version="AM1.5g",
+                    x=wl,
+                    output_units="power_density_per_nm",
+                ).spectrum(wl)
+            )[1]
+
+        elif type(illuminant) == int or type(illuminant) == float:
+
+            illum_array = np.array(
+                LightSource(
+                    source_type="black body",
+                    x=wl,
+                    output_units="power_density_per_nm",
+                    entendue="Sun",
+                    T=illuminant,
+                ).spectrum(wl)
+            )[1]
+
+        elif illuminant == "D50":
+
+            illum_array = load_D50(wl)
+
+        elif illuminant == "D65":
+
+            illum_array = load_D65(wl)
+
+        else:
+            illum_array = illuminant # assume it's an array
+            if len(illum_array) != len(wl):
+                raise ValueError("Illuminant array must be same length as wavelength array")
+
+        XYZ = np.zeros((len(R), 3))
+
+        for i1, R in enumerate(R):
+            XYZ[i1] = spec_to_XYZ(R, illum_array, cmf, 5)
+
+        if output_coords == "XYZ":
+            return color_names, XYZ
+
+        elif output_coords == "xyY":
+            x = XYZ[:, 0] / np.sum(XYZ, axis=1)
+            y = XYZ[:, 1] / np.sum(XYZ, axis=1)
+            Y = XYZ[:, 1]
+            color_xyY = np.array([x, y, Y]).T
+            return color_names, color_xyY
+
+        else:
+            raise ValueError("output_coords must be one of xyY or XYZ")
 
     else:
-        raise ValueError("output_coords must be one of xyY, XYZ, or Lab")
+        color_xyY = np.loadtxt(
+            join(current_path, "data", "paper_colors.csv"),
+            skiprows=1,
+            usecols=[2, 3, 4],
+            delimiter=",",
+        )
+
+        if output_coords == "xyY":
+            return color_names, color_xyY
+
+        elif output_coords == "XYZ":
+            color_XYZ = np.array([convert_xyY_to_XYZ(x) for x in color_xyY])
+            return color_names, color_XYZ
+
+        elif output_coords == "Lab":
+            color_Lab = np.array([convert_xyY_to_Lab(x) for x in color_xyY])
+            return color_names, color_Lab
+
+        else:
+            raise ValueError("output_coords must be one of xyY, XYZ, or Lab")
+
 
 
 def multiple_color_cells(
@@ -102,7 +191,7 @@ def multiple_color_cells(
     photon_flux: np.ndarray,
     n_peaks: int = 2,
     n_junctions: int = 1,
-    type: str = "sharp",
+    R_type: str = "sharp",
     fixed_height: bool = True,
     n_trials: int = 10,
     initial_iters: int = 100,
@@ -117,10 +206,11 @@ def multiple_color_cells(
     fixed_bandgaps: list = None,
     power_in: float = 1000,
     return_archipelagos: bool = False,
+    return_convergence_info: bool = False,
     j01_method: str = "perfect_R",
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
-    illuminant: str = "D50",
+    illuminant: str = "AM1.5g",
 ) -> dict:
 
     """Optimize color and efficiency of multiple colored cells using pygmo2's moaed (multi-objective differential evolution)
@@ -132,7 +222,7 @@ def multiple_color_cells(
                         being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
     :param n_peaks: number of peaks in the spectrum
     :param n_junctions: number of junctions in the cell
-    :param type: type of spectrum, "sharp" or "gauss" currently implemented
+    :param R_type: type of spectrum, "sharp" or "gauss" currently implemented
     :param fixed_height: whether to fix the height of the reflection peaks to max_height (True) or allow it to vary (False)
     :param n_trials: number of islands (separate threads) which will run concurrently
     :param initial_iters: number of evolutions of the initial population
@@ -160,7 +250,9 @@ def multiple_color_cells(
         population is provided, the first n elements of the decision vector will be
         set.
     :param illuminant: illuminant to use for calculating the XYZ coordinates of the
-        colours from the spectrum.
+        colours from the spectrum. Can be "AM1.5g", "D50" or "BB" (5778K black body). Can
+        also pass an array of the same length as the spectrum with the spectral power
+        density at each wavelength.
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
             each color), "champion_pop" (the champion population which maximizes the efficiency while staying within the
@@ -169,12 +261,12 @@ def multiple_color_cells(
     """
 
     placeholder_obj = make_spectrum_ndip(
-        n_peaks=n_peaks, type=type, fixed_height=fixed_height
+        n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
     pop_size = n_params * 10
 
-    cmf = load_cmf(photon_flux[0])
+    # cmf = load_cmf(photon_flux[0])
     interval = np.diff(photon_flux[0])[0]
 
     if max_trials_col is None:
@@ -183,11 +275,51 @@ def multiple_color_cells(
     if minimum_eff is None:
         minimum_eff = np.zeros(len(color_XYZ))
 
-    if illuminant == "D50":
-        illuminant = load_D50(photon_flux[0])
-
     if seed_population is None:
         seed_population = [None] * len(color_XYZ)
+
+    wl_visible = photon_flux[0][np.all([photon_flux[0] >= 380, photon_flux[0] <=
+                                        730], axis=0)]
+
+    cmf_visible = load_cmf(wl_visible)
+
+    if illuminant == "AM1.5g":
+
+        illuminant = np.array(
+            LightSource(
+                source_type="standard",
+                version="AM1.5g",
+                x=wl_visible,
+                output_units="power_density_per_nm",
+            ).spectrum(wl_visible)[1]
+        )
+        print("Loaded AM1.5g")
+
+    elif illuminant == "BB":
+
+        illuminant = np.array(
+            LightSource(
+                source_type="black body",
+                x=wl_visible,
+                output_units="power_density_per_nm",
+                entendue="Sun",
+                T=5778,
+            ).spectrum(wl_visible)[1]
+        )
+
+    elif illuminant == "D50":
+
+        illuminant = load_D50(wl_visible)
+
+    elif illuminant == "D65":
+
+            illuminant = load_D65(wl_visible)
+
+    else:
+        if len(illuminant) != len(wl_visible):
+            raise ValueError("Illuminant array must be same length as photon flux "
+                             "array")
+
 
     mean_sd_effs = np.empty((len(color_XYZ), 4))
 
@@ -208,6 +340,8 @@ def multiple_color_cells(
 
     current_iters = initial_iters
 
+    best_eta_or_deltaXYZ = [[] for _ in range(len(color_XYZ))]
+
     start_time = time()
 
     while not all_converged:
@@ -220,7 +354,7 @@ def multiple_color_cells(
             spectrum_obj = make_spectrum_ndip(
                 n_peaks=n_peaks,
                 target=color_XYZ[k1],
-                type=type,
+                R_type=R_type,
                 fixed_height=fixed_height,
             )
             # the bounds are generated when calling make_spectrum_ndip depending on the target colour
@@ -234,6 +368,7 @@ def multiple_color_cells(
             archi = internal_run.run(
                 color_XYZ[k1],
                 photon_flux,
+                illuminant,
                 n_peaks,
                 n_junctions,
                 pop_size,
@@ -297,6 +432,8 @@ def multiple_color_cells(
                 ch_eff = np.max(max_eff_acc)
                 ch_eff_ind = np.argmax(max_eff_acc)
 
+                best_eta_or_deltaXYZ[k1].append(ch_eff)
+
                 ch_pop = best_acc_pop[ch_eff_ind]
 
                 mean_sd_effs[k1] = [
@@ -322,7 +459,7 @@ def multiple_color_cells(
                         # if ch_eff < champion_eff[k1]:
                         #     print("New efficiency worse than current champion, "
                         #           "reset population")
-                        #     archipelagos[k1] = None
+                        archipelagos[k1] = None
 
                     else:
                         conv[k1] = True
@@ -330,7 +467,7 @@ def multiple_color_cells(
                         spec = internal_run.spec_func(
                             champion_pop[k1],
                             n_peaks,
-                            photon_flux[0],
+                            wl_visible,
                             base=base,
                             max_height=max_height,
                         )
@@ -338,19 +475,14 @@ def multiple_color_cells(
                         color_XYZ_found[k1] = spec_to_XYZ(
                             spec,
                             illuminant,
-                            cmf,
+                            cmf_visible,
                             interval,
                         )
 
                         if plot:
-                            spec = internal_run.spec_func(
-                                champion_pop[k1],
-                                n_peaks,
-                                photon_flux[0],
-                                base=base,
-                                max_height=max_height,
-                            )
-                            plot_outcome(spec, photon_flux, color_XYZ[k1], color_names[k1])
+
+                            plot_outcome(spec, photon_flux, color_XYZ[k1], illuminant,
+                                         color_names[k1])
                             plt.xlim(300, 1000)
                             plt.show()
 
@@ -367,6 +499,8 @@ def multiple_color_cells(
                     "no acceptable populations",
                     np.min(all_fs[:, :, 0]),
                 )
+                best_eta_or_deltaXYZ[k1].append(np.min(all_fs[:, :, 0]))
+
                 if iters_needed[k1] >= max_trials_col:
                     flat_x = all_xs.reshape(-1, all_xs.shape[-1])
                     flat_f = all_fs.reshape(-1, all_fs.shape[-1])
@@ -387,7 +521,7 @@ def multiple_color_cells(
                     spec = internal_run.spec_func(
                         champion_pop[k1],
                         n_peaks,
-                        photon_flux[0],
+                        wl_visible,
                         base=base,
                         max_height=max_height,
                     )
@@ -395,7 +529,7 @@ def multiple_color_cells(
                     color_XYZ_found[k1] = spec_to_XYZ(
                         spec,
                         illuminant,
-                        cmf,
+                        cmf_visible,
                         interval,
                     )
 
@@ -403,7 +537,7 @@ def multiple_color_cells(
                         spec = internal_run.spec_func(
                             champion_pop[k1],
                             n_peaks,
-                            photon_flux[0],
+                            wl_visible,
                             base=base,
                             max_height=max_height,
                         )
@@ -411,6 +545,7 @@ def multiple_color_cells(
                             spec,
                             hc * photon_flux,
                             color_XYZ[k1],
+                            illuminant,
                             color_names[k1] + " (target not reached)",
                         )
                         plt.xlim(300, 1000)
@@ -446,18 +581,18 @@ def multiple_color_cells(
     delta_E = [delta_E_CIE2000(x, y) for x, y in zip(color_Lab_found, color_Lab_target)]
     print("Delta E*:", delta_E, np.max(delta_E))
 
-    if return_archipelagos:
-        return {
+    results = {
             "champion_eff": champion_eff,
-            "champion_pop": champion_pop,
-            "archipelagos": archipelagos,
-        }
+            "champion_pop": champion_pop
+    }
 
-    else:
-        return {
-            "champion_eff": champion_eff,
-            "champion_pop": champion_pop,
-        }
+    if return_archipelagos:
+        results["archipelagos"] = archipelagos
+
+    if return_convergence_info:
+        results["convergence_info"] = best_eta_or_deltaXYZ
+
+    return results
 
 
 class single_color_cell:
@@ -487,6 +622,7 @@ class single_color_cell:
         self,
         target,
         photon_flux,
+        illuminant,
         n_peaks=2,
         n_gaps=1,
         popsize=80,
@@ -507,6 +643,7 @@ class single_color_cell:
             n_gaps,
             target,
             photon_flux,
+            illuminant,
             self.spec_func,
             power_in,
             spectrum_bounds,
@@ -551,7 +688,7 @@ class color_optimization_only:
     def run(
         self,
         target,
-        photon_flux,
+        illuminant,
         n_peaks=2,
         popsize=40,
         gen=1000,
@@ -560,7 +697,7 @@ class color_optimization_only:
         archi=None,
     ):
 
-        p_init = color_optimization(n_peaks, target, photon_flux, self.spec_func)
+        p_init = color_optimization(n_peaks, target, illuminant, self.spec_func)
 
         udp = pg.problem(p_init)
         algo = pg.algorithm(pg.de(gen=gen, CR=1, F=1, ftol=ftol))
@@ -573,7 +710,8 @@ class color_optimization_only:
         archi.wait()
 
         best_delta = np.min(archi.get_champions_f())
-        return best_delta
+        best_population = archi.get_champions_x()[np.argmin(archi.get_champions_f())]
+        return best_delta, best_population
 
 
 class color_function_mobj:
@@ -583,6 +721,7 @@ class color_function_mobj:
         n_juncs,
         tg,
         photon_flux,
+        illuminant,
         spec_func=gen_spectrum_ndip,
         power_in=1000,
         spectrum_bounds=[], # spectrum_bounds is passed to the object here - these are only the bounds describing the
@@ -593,14 +732,13 @@ class color_function_mobj:
         Eg_black=None,
         fixed_bandgaps=None,
         j01_method="perfect_R",
-        illuminant="D50",
         **kwargs
     ):
 
         self.n_peaks = n_peaks
         self.n_juncs = n_juncs
         self.target_color = tg
-        self.c_bounds = [380, 780]
+        self.c_bounds = [380, 730]
         self.spec_func = spec_func
         self.dim = len(spectrum_bounds[0]) + n_juncs
         self.bounds_passed = spectrum_bounds
@@ -618,7 +756,7 @@ class color_function_mobj:
         self.solar_spec = (
             hc
             * self.solar_flux[
-                np.all([self.cell_wl >= 380, self.cell_wl <= 780], axis=0)
+                np.all([self.cell_wl >= 380, self.cell_wl <= 730], axis=0)
             ]
             / (self.col_wl * 1e-9)
         )
@@ -628,11 +766,7 @@ class color_function_mobj:
         self.add_args = kwargs
         self.j01_method = j01_method
 
-        if illuminant == "D50":
-            self.illuminant = load_D50(self.col_wl)
-
-        else:
-            self.illuminant = illuminant
+        self.illuminant = illuminant
 
         if fixed_bandgaps is not None:
             self.fixed_bandgaps = fixed_bandgaps
@@ -652,7 +786,6 @@ class color_function_mobj:
 
         XYZ = np.array(spec_to_XYZ(R_spec, self.illuminant, self.cmf, self.interval))
         delta = delta_XYZ(self.target_color, XYZ)
-
         R_spec_cell = self.spec_func(x, self.n_peaks, wl=self.cell_wl, **self.add_args)
 
         flux = self.solar_flux * (1 - R_spec_cell)
@@ -662,6 +795,7 @@ class color_function_mobj:
                       method=self.j01_method,
                       n_peaks=self.n_peaks,
                       ) / self.incident_power
+
 
         return delta, eta
 
@@ -707,23 +841,22 @@ class color_function_mobj:
 
 
 class color_optimization:
-    def __init__(self, n_peaks, tg, photon_flux, spec_func=gen_spectrum_ndip,
-                 illuminant="D50"):
+    def __init__(self, n_peaks, tg, illuminant, spec_func=gen_spectrum_ndip):
 
         self.n_peaks = n_peaks
         self.target_color = tg
         self.spec_func = spec_func
         self.dim = n_peaks * 2
 
-        self.col_wl = photon_flux[0]
-        self.solar_spec = hc * photon_flux[1] / (self.col_wl * 1e-9)
+        self.col_wl = illuminant[0]
+        # self.solar_spec = hc * photon_flux[1] / (self.col_wl * 1e-9)
         self.interval = np.round(np.diff(self.col_wl)[0], 6)
         self.cmf = load_cmf(self.col_wl)
-        if illuminant == "D50":
-            self.illuminant = load_D50(self.col_wl)
-
-        else:
-            self.illuminant = illuminant
+        # if illuminant == "D50":
+        #     self.illuminant = load_D50(self.col_wl)
+        #
+        # else:
+        self.illuminant = illuminant[1]
 
     def fitness(self, x):
 
@@ -735,7 +868,7 @@ class color_optimization:
 
     def get_bounds(self):
 
-        bounds = ([425, 500, 0, 0], [476, 625, 150, 160])
+        bounds = ([425, 500, 0, 0], [476, 625, 200, 200])
 
         return bounds
 
@@ -826,10 +959,10 @@ def plot_outcome(
     spec: np.ndarray,
     photon_flux_cell: np.ndarray,
     target: np.ndarray,
+    illuminant,
     name: str,
     Egs: Sequence = None,
     ax=None,
-    illuminant="D50",
 ):
     """Function to plot the outcome (reflection spectrum, target and found colour) of a combined cell efficiency/colour
     optimization, or a colour-only optimization.
@@ -843,12 +976,11 @@ def plot_outcome(
     :param illuminant: illuminant to use for the conversion to sRGB (optional)
     """
 
-    cmf = load_cmf(photon_flux_cell[0])
+    wl_visible = photon_flux_cell[0][np.all([photon_flux_cell[0] >= 380,
+                                               photon_flux_cell[0] <= 730],
+                                              axis=0)]
+    cmf = load_cmf(wl_visible)
     interval = np.round(np.diff(photon_flux_cell[0])[0], 6)
-
-    if illuminant == "D50":
-        illuminant = load_D50(photon_flux_cell[0])
-
     found_xyz = spec_to_XYZ(
         spec, illuminant, cmf, interval
     )
@@ -871,8 +1003,8 @@ def plot_outcome(
     if ax is None:
         fig, ax = plt.subplots()
     ax.set_prop_cycle(color=["red", "green", "blue"])
-    ax.fill_between(photon_flux_cell[0], 1, 1 - spec, color="black", alpha=0.3)
-    ax.plot(photon_flux_cell[0], cmf / np.max(cmf))
+    ax.fill_between(wl_visible, 1, 1 - spec, color="black", alpha=0.3)
+    ax.plot(wl_visible, cmf / np.max(cmf))
     ax.plot(
         photon_flux_cell[0],
         photon_flux_cell[1] / np.max(photon_flux_cell[1]),

@@ -22,7 +22,7 @@ interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(
     300, 4000, interval
 )  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
-# spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
+# spectrum. For calculations relating to colour perception, only the visible range (380-730 nm) will be used.
 
 single_J_result = pd.read_csv("../ecopv/data/paper_colors.csv")
 
@@ -34,7 +34,7 @@ max_trials_col = 3 * add_iters
 # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
@@ -67,7 +67,7 @@ light_source = LightSource(
 photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 photon_flux_color = photon_flux_cell[
-    :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)
+    :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 730), axis=0)
 ]
 
 shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
@@ -87,7 +87,7 @@ for n_peaks in n_peak_loop:
 
             save_loc = (
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -103,7 +103,7 @@ for n_peaks in n_peak_loop:
 
             champion_effs[l1] = np.loadtxt(
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -117,7 +117,7 @@ for n_peaks in n_peak_loop:
 
             champion_pops = np.loadtxt(
                 "results/champion_pop_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)

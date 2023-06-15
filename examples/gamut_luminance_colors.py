@@ -6,6 +6,8 @@ from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 
+force_rerun = False
+
 Ys = [0.25, 0.5, 0.75]
 
 wl_vis = np.linspace(360, 780, 500)
@@ -16,6 +18,9 @@ sumXYZ = np.sum(XYZ, axis=1)
 
 xg = XYZ[:, 0] / sumXYZ
 yg = XYZ[:, 1] / sumXYZ
+
+# xs = np.arange(np.min(xg), np.max(xg), 0.01)
+# ys = np.arange(np.min(yg), np.max(yg), 0.01)
 
 xs = np.arange(np.min(xg), np.max(xg), 0.01)
 ys = np.arange(np.min(yg), np.max(yg), 0.01)
@@ -57,10 +62,6 @@ acceptable_eff_change = 1e-3  # how much can the efficiency (in %) change betwee
 
 n_trials = 10  # number of islands which will run concurrently in parallel
 interval = 0.1  # wavelength interval (in nm)
-wl_cell = np.arange(
-    300, 4000, interval
-)  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
-# spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
 n_peaks = 2
 
@@ -73,7 +74,7 @@ max_trials_col = (
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
@@ -83,19 +84,17 @@ max_height = (
 )
 base = 0  # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
+wl_col = np.arange(380, 730.001, interval)
+
 # Use AM1.5G spectrum:
 light_source = LightSource(
     source_type="standard",
     version=light_source_name,
-    x=wl_cell,
-    output_units="photon_flux_per_nm",
+    x=np.arange(380, 730.001, interval),
+    output_units="power_density_per_nm",
 )
 
-photon_flux_cell = np.array(light_source.spectrum(wl_cell))
-
-photon_flux_color = photon_flux_cell[
-    :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)
-]
+spectral_power_density = np.array(light_source.spectrum(wl_col))
 
 shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
 
@@ -114,14 +113,17 @@ if __name__ == "__main__":
 
     for i1, Y in enumerate(Ys):
 
+        best_population = np.zeros((len(xs), len(ys), 4))
+
         counter = 0
 
-        col_possible_str = save_path + "/possible_colours_Y_{}_spd_2.txt".format(Y)
+        col_possible_str = save_path + "/possible_colours_Y_{}.txt".format(Y)
 
-        if os.path.exists(save_path + "/possible_colours_Y_{}_spd_2.txt".format(Y)):
+        if os.path.exists(save_path + "/possible_colours_Y_{}.txt".format(Y)) \
+                and not force_rerun:
             is_possible = np.loadtxt(col_possible_str)
             deltaE = np.loadtxt(
-                save_path + "/possible_colours_Y_{}_deltaE_spd_2.txt".format(Y)
+                save_path + "/possible_colours_Y_{}.txt".format(Y)
             )
             print("Possible colours:", np.sum(is_possible))
 
@@ -134,7 +136,7 @@ if __name__ == "__main__":
             else:
                 print("Load lower luminance data")
                 col_possible_str_pr = (
-                    save_path + "/possible_colours_Y_{}_spd_2.txt".format(Ys[i1 - 1])
+                    save_path + "/possible_colours_Y_{}.txt".format(Ys[i1 - 1])
                 )
                 is_possible = np.loadtxt(col_possible_str_pr)
 
@@ -148,24 +150,30 @@ if __name__ == "__main__":
                         XYZ = np.array(
                             convert_color(xyYColor(x, y, Y), XYZColor).get_value_tuple()
                         )
+                        print(XYZ)
 
                         prob = color_optimization_only()
-                        result = prob.run(XYZ, photon_flux_color, n_peaks, 40, 1000)
+                        result = prob.run(XYZ, spectral_power_density, n_peaks, 40,
+                                          1000)
 
-                        if result > col_thresh:
+                        if result[0] > col_thresh:
                             print(counter, j1, k1, "Cannot make colour", result)
                             is_possible[j1, k1] = False
-                            deltaE[j1, k1] = result
+                            deltaE[j1, k1] = result[0]
 
                         else:
                             print(counter, j1, k1, "Can make colour", result)
-                            deltaE[j1, k1] = result
+                            deltaE[j1, k1] = result[0]
+                            best_population[j1, k1] = result[1]
 
                         counter += 1
 
             np.savetxt(col_possible_str, is_possible)
             np.savetxt(
-                save_path + "/possible_colours_Y_{}_deltaE_spd_2.txt".format(Y), deltaE
+                save_path + "/possible_colours_Y_{}_deltaE.txt".format(Y), deltaE
+            )
+            np.save(save_path + "/possible_colours_Y_{}_populations.npy".format(
+                Y), best_population
             )
 
         print("sum:", np.sum(is_possible))
