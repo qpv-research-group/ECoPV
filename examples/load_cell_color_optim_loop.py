@@ -1,5 +1,6 @@
 from os.path import join
-from ecopv.optimization_functions import getPmax, getIVmax
+from ecopv.optimization_functions import getPmax, getIVmax, \
+    db_cell_calculation_perfectR, db_cell_calculation_noR
 from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip, load_cmf
 
 from solcore.light_source import LightSource
@@ -50,8 +51,9 @@ max_trials_col = (
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) or not
+j01_method = "perfect_R"
 
 max_height = 1  # maximum height of reflection peaks
 base = 0  # baseline fixed reflection
@@ -60,7 +62,7 @@ patch_width = 0.75
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]
 
-n_peak_loop = [4, 3, 2]
+n_peak_loop = [2, 3, 4]
 # also run for 1 junc/1 peak but no more junctions.
 
 color_names, color_XYZ = load_colorchecker()  # 24 default Babel colors
@@ -81,6 +83,8 @@ color_XYZ_xr = xr.concat([color_XYZ_xr, color_XYZ_bw], dim="color")
 
 # color_names = color_names[:5]
 # color_XYZ = color_XYZ[:5]
+
+light_source_name = "AM1.5g"
 
 photon_flux_cell = np.array(
     LightSource(
@@ -110,7 +114,7 @@ n_junctions = 1
 
 champion_effs = np.loadtxt(
     "results/champion_eff_"
-    + type
+    + R_type
     + str(n_peaks)
     + "_"
     + str(n_junctions)
@@ -118,12 +122,12 @@ champion_effs = np.loadtxt(
     + str(fixed_height)
     + str(max_height)
     + "_"
-    + str(base)
-    + "_spd.txt"
+    + str(base) + "_"  + j01_method + light_source_name
+    + ".txt"
 )
 champion_pops = np.loadtxt(
     "results/champion_pop_"
-    + type
+    + R_type
     + str(n_peaks)
     + "_"
     + str(n_junctions)
@@ -131,8 +135,71 @@ champion_pops = np.loadtxt(
     + str(fixed_height)
     + str(max_height)
     + "_"
-    + str(base)
-    + "_spd.txt"
+    + str(base) + "_"  + j01_method + light_source_name
+    + ".txt"
+)
+
+
+color_list = sRGB_color_list(order="unsorted")
+
+fig, (ax, ax2) = plt.subplots(2, 1, figsize=(5, 5))
+for k1 in range(len(color_XYZ)):
+    ax.plot(color_XYZ[k1,1], single_J_result[k1, 3], 'o',
+            color=color_list[k1],
+            markeredgecolor='k',)
+# ax.plot(color_names, champion_effs, "or", label="MO-DE results", mfc="none")
+# ax2.plot(color_names, champion_pops[:, -1], "ok", mfc="none")
+for k1 in range(len(color_XYZ)):
+    ax2.plot(color_XYZ[k1,1], single_J_result[k1, 7], 'o',
+            color=color_list[k1],
+             markeredgecolor='k')# apply_formatting(ax, color_labels=color_names)
+# apply_formatting(ax2, color_labels=color_names)
+ax.grid()
+ax2.grid()
+ax.set_xlim(0,)
+ax2.set_xlim(0,)
+ax2.set_ylabel("Optimal bandgap (eV)")
+ax.set_ylabel("Efficiency (%)")
+ax2.set_xlabel("Relative luminance")
+plt.tight_layout()
+plt.show()
+
+
+### 1J results with luminance ##
+single_J_result = np.loadtxt(
+    join("../ecopv/data", "paper_colors.csv"),
+    skiprows=1,
+    usecols=[2, 3, 4, 5, 6, 7, 8, 9],
+    delimiter=",",
+)
+n_peaks = 2
+n_junctions = 1
+
+champion_effs = np.loadtxt(
+    "results/champion_eff_"
+    + R_type
+    + str(n_peaks)
+    + "_"
+    + str(n_junctions)
+    + "_"
+    + str(fixed_height)
+    + str(max_height)
+    + "_"
+    + str(base) + "_"  + j01_method + light_source_name
+    + ".txt"
+)
+champion_pops = np.loadtxt(
+    "results/champion_pop_"
+    + R_type
+    + str(n_peaks)
+    + "_"
+    + str(n_junctions)
+    + "_"
+    + str(fixed_height)
+    + str(max_height)
+    + "_"
+    + str(base) + "_"  + j01_method + light_source_name
+    + ".txt"
 )
 
 fig, (ax, ax2) = plt.subplots(1, 2, figsize=(10, 5))
@@ -154,14 +221,14 @@ loop_n = 0
 cols = sns.color_palette("Set2", n_colors=len(n_junc_loop))
 cols = ["r", "g", "k"]
 
-black_cell_eff = np.array([33.8, 45.9, 51.8, 55.5, 57.8, 59.7])
+black_cell_eff = np.array([33.79, 45.85, 51.76, 55.49, 57.82, 59.71])
 black_cell_Eg = [
     [1.34],
     [0.96, 1.63],
     [0.93, 1.37, 1.90],
     [0.72, 1.11, 1.49, 2.00],
     [0.70, 1.01, 1.33, 1.67, 2.14],
-    [0.70, 0.96, 1.20, 1.47, 1.79, 2.24],
+    [0.69, 0.96, 1.20, 1.47, 1.79, 2.24],
 ]
 
 Y = np.hstack((color_XYZ[:, 1], [0]))
@@ -173,7 +240,7 @@ alphas = [1, 0.5]
 
 fixed_height_loop = [True]
 
-fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 7))
+fig, (ax1, ax2) = plt.subplots(2, figsize=(5.5, 4.2))
 
 for j1, n_junctions in enumerate(n_junc_loop):
     for i1, n_peaks in enumerate(n_peak_loop):
@@ -181,7 +248,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
 
             champion_effs = np.loadtxt(
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -189,12 +256,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
             champion_pops = np.loadtxt(
                 "results/champion_pop_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -202,8 +269,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
 
             append_black = black_cell_eff[n_junctions - 1]
@@ -220,6 +287,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                     # label=fixed_height,
                     label=n_junctions,
                     alpha=alphas[k1],
+                    markersize=4,
                 )
 
             else:
@@ -231,6 +299,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                     color=cols[i1],
                     marker=shapes[j1],
                     alpha=alphas[k1],
+                    markersize=4,
                 )
 
             eff_loss = (
@@ -249,6 +318,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                     marker=shapes[j1],
                     label=n_peaks,
                     alpha=alphas[k1],
+                    markersize=4,
                 )
 
             else:
@@ -260,6 +330,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
                     color=cols[i1],
                     marker=shapes[j1],
                     alpha=alphas[k1],
+                    markersize=4,
                 )
 
             # plt.legend(title="Fixed h:")
@@ -271,23 +342,31 @@ ax2.set_ylim(-40, 0.6)
 
 # plt.legend(title="Fixed h:")
 ax1.set_ylabel("Efficiency (%)")
+
 ax2.set_ylabel("Relative efficiency loss (%)")
 
 # ax1.set_ylim(50, 55)
-ax1.legend(bbox_to_anchor=(1.15, 0.8), title="Junctions:")
-ax2.legend(bbox_to_anchor=(1.15, 0.8), title="Peaks:")
+leg = ax1.legend(bbox_to_anchor=(1.1, 0.95), loc="upper center", title="Junctions:",
+           fontsize=9)
+leg.get_title().set_fontsize('9')
+leg = ax2.legend(bbox_to_anchor=(1.1, 0.95), loc="upper center", title="Peaks:",
+           fontsize=9)
+leg.get_title().set_fontsize('9')
 plt.tight_layout()
 add_colour_patches(ax2, patch_width, eff_loss.color.data, color_XYZ_xr)
 plt.show()
 
 
-### Efficiency and relative efficiency loss for each color, 1-6 junctions, 2-4 peaks - BLACK BODY ###
+### Efficiency and relative efficiency loss for each color, 1-6 junctions, 2- BLACK BODY ###
 
 black_cell_eff_bb = []
 black_cell_Eg_bb = []
+
+wl_cell_bb = np.arange(180, 4000, interval)
+
 light_source = LightSource(
     source_type="black body",
-    x=wl_cell,
+    x=wl_cell_bb,
     output_units="photon_flux_per_nm",
     entendue="Sun",
     T=5778,
@@ -306,10 +385,12 @@ for n_junctions in n_junc_loop:
         100
         * getPmax(
             Egs,
-            light_source.spectrum(wl_cell)[1],
-            light_source.spectrum(wl_cell)[0],
+            light_source.spectrum(wl_cell_bb)[1],
+            light_source.spectrum(wl_cell_bb)[0],
             interval,
-            upperE=1240/min(wl_cell)
+            upperE=1240/min(wl_cell_bb),
+            x=None,
+            method="no_R",
         )
         / light_source.power_density
     )
@@ -320,6 +401,8 @@ n_junc_loop = [1, 2, 3, 4, 5, 6]
 n_peak_loop = [2]
 fixed_height_loop = [True]
 
+light_source_name = "BB"
+
 fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 7))
 
 for j1, n_junctions in enumerate(n_junc_loop):
@@ -328,7 +411,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
 
             champion_effs = np.loadtxt(
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -336,12 +419,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "bb_spd.txt"
+                + str(base) + "_" + j01_method + light_source_name
+                + ".txt"
             )
             champion_pops = np.loadtxt(
                 "results/champion_pop_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -349,8 +432,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "bb_spd.txt"
+                + str(base) + "_" + j01_method + light_source_name
+                + ".txt"
             )
 
             append_black = black_cell_eff_bb[n_junctions - 1]
@@ -428,10 +511,11 @@ add_colour_patches(ax2, patch_width, eff_loss.color.data, color_XYZ_xr)
 plt.show()
 
 
-### Optimal bandgaps (2 peaks) ###
+### Optimal bandgaps (2 peaks) - AM1.5g ###
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]
 n_peak_loop = [2]
+light_source_names = ["AM1.5g", "BB"]
 fixed_height_loop = [True]
 
 pal = sns.color_palette("husl", max(n_junc_loop))
@@ -439,138 +523,143 @@ cols = cycler("color", pal)
 params = {"axes.prop_cycle": cols}
 plt.rcParams.update(params)
 
-fig, axs = plt.subplots(3, 2, figsize=(10, 7))
 
-axs = axs.flatten()
+for light_source_name in light_source_names:
 
-for j1, n_junctions in enumerate(n_junc_loop):
-    for i1, n_peaks in enumerate(n_peak_loop):
-        for k1, fixed_height in enumerate(fixed_height_loop):
-            champion_effs = np.loadtxt(
-                "results/champion_eff_"
-                + type
-                + str(n_peaks)
-                + "_"
-                + str(n_junctions)
-                + "_"
-                + str(fixed_height)
-                + str(max_height)
-                + "_"
-                + str(base)
-                + "bb_spd.txt"
-            )
-            champion_pops = np.loadtxt(
-                "results/champion_pop_"
-                + type
-                + str(n_peaks)
-                + "_"
-                + str(n_junctions)
-                + "_"
-                + str(fixed_height)
-                + str(max_height)
-                + "_"
-                + str(base)
-                + "bb_spd.txt"
-            )
+    fig, axs = plt.subplots(3, 2, figsize=(10, 7))
 
-            Eg_xr = make_sorted_xr(
-                champion_pops[:, -n_junctions:],
-                color_names,
-                append_black=black_cell_Eg[n_junctions - 1],
-            )
+    axs = axs.flatten()
 
-            axs[j1].plot(
-                Eg_xr.color.data,
-                1240 / Eg_xr.data,
-                mfc="none",
-                linestyle="--",
-                # color=cols[i1], marker=shapes[j1],
-                marker="o",
-                markersize=4,
-                # label=n_junctions,
-                alpha=alphas[k1],
-            )
+    for j1, n_junctions in enumerate(n_junc_loop):
+        for i1, n_peaks in enumerate(n_peak_loop):
+            for k1, fixed_height in enumerate(fixed_height_loop):
+                champion_effs = np.loadtxt(
+                    "results/champion_eff_"
+                    + R_type
+                    + str(n_peaks)
+                    + "_"
+                    + str(n_junctions)
+                    + "_"
+                    + str(fixed_height)
+                    + str(max_height)
+                    + "_"
+                    + str(base) + "_" + j01_method + light_source_name
+                    + ".txt"
+                )
+                champion_pops = np.loadtxt(
+                    "results/champion_pop_"
+                    + R_type
+                    + str(n_peaks)
+                    + "_"
+                    + str(n_junctions)
+                    + "_"
+                    + str(fixed_height)
+                    + str(max_height)
+                    + "_"
+                    + str(base) + "_" + j01_method + light_source_name
+                    + ".txt"
+                )
 
-    axs[j1].set_ylim(350, 2400)
+                Eg_xr = make_sorted_xr(
+                    champion_pops[:, -n_junctions:],
+                    color_names,
+                    append_black=black_cell_Eg[n_junctions - 1],
+                )
 
-    if j1 < 4:
-        apply_formatting(axs[j1], grid="x", n_colors=len(Eg_xr.color.data))
+                axs[j1].plot(
+                    Eg_xr.color.data,
+                    1240 / Eg_xr.data,
+                    mfc="none",
+                    linestyle="--",
+                    # color=cols[i1], marker=shapes[j1],
+                    marker="o",
+                    markersize=4,
+                    # label=n_junctions,
+                    alpha=alphas[k1],
+                )
 
-    else:
-        apply_formatting(axs[j1], Eg_xr.color.data, grid="x")
+        axs[j1].set_ylim(350, 2400)
 
-    if n_junctions == 1:
-        axs[j1].text(1, 2050, "1 junction")
+        if j1 < 4:
+            apply_formatting(axs[j1], grid="x", n_colors=len(Eg_xr.color.data))
 
-    else:
-        axs[j1].text(1, 2050, str(n_junctions) + " junctions")
+        else:
+            apply_formatting(axs[j1], Eg_xr.color.data, grid="x")
 
-    if j1 == 0 or j1 == 2 or j1 == 4:
-        axs[j1].set_ylabel("Bandgap (nm)")
+        if n_junctions == 1:
+            axs[j1].text(1, 2050, "1 junction")
 
-    if j1 % 2 == 1:
-        axs[j1].set_yticklabels([])
-        axs[j1].tick_params(direction="in", which="both", axis="y", right=False)
-        f = lambda x: 1240 / x
-        ax2 = axs[j1].secondary_yaxis("right", functions=(f, f))
-        ax2.set_yticks([1, 1.5, 2, 3])
-        ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
-        ax2.set_ylabel("Bandgap (eV)")
+        else:
+            axs[j1].text(1, 2050, str(n_junctions) + " junctions")
 
-plt.tight_layout()
-plt.subplots_adjust(wspace=0, hspace=0)
-add_colour_patches(axs[4], patch_width, Eg_xr.color.data, color_XYZ_xr)
-add_colour_patches(axs[5], patch_width, Eg_xr.color.data, color_XYZ_xr)
-plt.show()
+        if j1 == 0 or j1 == 2 or j1 == 4:
+            axs[j1].set_ylabel("Bandgap (nm)")
+
+        if j1 % 2 == 1:
+            axs[j1].set_yticklabels([])
+            axs[j1].tick_params(direction="in", which="both", axis="y", right=False)
+            f = lambda x: 1240 / x
+            ax2 = axs[j1].secondary_yaxis("right", functions=(f, f))
+            ax2.set_yticks([1, 1.5, 2, 3])
+            ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
+            ax2.set_ylabel("Bandgap (eV)")
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0, hspace=0)
+    add_colour_patches(axs[4], patch_width, Eg_xr.color.data, color_XYZ_xr)
+    add_colour_patches(axs[5], patch_width, Eg_xr.color.data, color_XYZ_xr)
+    plt.show()
 
 # Compare fixed and variable peak height results:
-n_junc_loop = [1, 2, 3, 4, 5, 6]
-
-n_peak_loop = [2]
-
-alphas = [1, 0.5]
-
-fixed_height_loop = [True, False]
-
-for j1, n_junctions in enumerate(n_junc_loop):
-    for i1, n_peaks in enumerate(n_peak_loop):
-        champion_eff_comp = np.empty((2, 24))
-
-        for k1, fixed_height in enumerate(fixed_height_loop):
-            champion_effs = np.loadtxt(
-                "results/champion_eff_"
-                + type
-                + str(n_peaks)
-                + "_"
-                + str(n_junctions)
-                + "_"
-                + str(fixed_height)
-                + str(max_height)
-                + "_"
-                + str(base)
-                + ".txt"
-            )
-            champion_pops = np.loadtxt(
-                "results/champion_pop_"
-                + type
-                + str(n_peaks)
-                + "_"
-                + str(n_junctions)
-                + "_"
-                + str(fixed_height)
-                + str(max_height)
-                + "_"
-                + str(base)
-                + ".txt"
-            )
-            # final_populations = np.load("results/final_pop_tcheb_" + type + str(n_peaks) + '_' + str(
-            #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', allow_pickle=True)
-            champion_eff_comp[k1] = champion_effs
-
-    print(
-        n_junctions, np.max(champion_eff_comp[1] - champion_eff_comp[0])
-    )  # if positive, variable height is better;
-    # should be < acceptable_eff_change which is 1e-4
+# n_junc_loop = [1, 2, 3, 4, 5, 6]
+#
+# n_peak_loop = [2]
+#
+# alphas = [1, 0.5]
+#
+# fixed_height_loop = [True, False]
+#
+# light_source_name = "AM1.5g"
+#
+# for j1, n_junctions in enumerate(n_junc_loop):
+#     for i1, n_peaks in enumerate(n_peak_loop):
+#         champion_eff_comp = np.empty((2, 24))
+#
+#         for k1, fixed_height in enumerate(fixed_height_loop):
+#             champion_effs = np.loadtxt(
+#                 "results/champion_eff_"
+#                 + R_type
+#                 + str(n_peaks)
+#                 + "_"
+#                 + str(n_junctions)
+#                 + "_"
+#                 + str(fixed_height)
+#                 + str(max_height)
+#                 + "_"
+#                 + str(base) + "_" + j01_method + light_source_name
+#                 + ".txt"
+#             )
+#             champion_pops = np.loadtxt(
+#                 "results/champion_pop_"
+#                 + R_type
+#                 + str(n_peaks)
+#                 + "_"
+#                 + str(n_junctions)
+#                 + "_"
+#                 + str(fixed_height)
+#                 + str(max_height)
+#                 + "_"
+#                 + str(base) + "_" + j01_method + light_source_name
+#                 + ".txt"
+#             )
+#             # final_populations = np.load("results/final_pop_tcheb_" + R_type + str(n_peaks) + '_' + str(
+#             #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name + "_"  + j01_method + light_source_name+'.npy', allow_pickle=True)
+#             champion_eff_comp[k1] = champion_effs
+#
+#     print(
+#         n_junctions, np.max(champion_eff_comp[1] - champion_eff_comp[0])
+#     )  # if positive, variable height is better;
+#     # should be < acceptable_eff_change which is 1e-4
 
     # plt.legend(title="Fixed h:")
 #
@@ -581,8 +670,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
 #     champion_effs = np.empty((len(n_peak_loop), len(color_XYZ)))
 #
 #     for i1, n_peaks in enumerate(n_peak_loop):
-#         champion_effs[i1] = np.loadtxt("results/champion_eff_tcheb_" + type + str(n_peaks) + '_' + str(
-#             n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
+#         champion_effs[i1] = np.loadtxt("results/champion_eff_tcheb_" + R_type + str(n_peaks) + '_' + str(
+#             n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name + '.txt')
 #
 #     for l1 in range(0, len(n_peak_loop) - 1):
 #         print(l1)
@@ -600,7 +689,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
 # interval = np.round(np.diff(photon_flux_cell[0])[0], 6)
 #
 #
-# type = "sharp"
+# R_type = "sharp"
 # max_height = 1
 # base = 0
 #
@@ -619,14 +708,14 @@ for j1, n_junctions in enumerate(n_junc_loop):
 #
 #         for i1, n_peaks in enumerate(n_peak_loop):
 #             for k1, fixed_height in enumerate([True]):
-#                 placeholder_obj = make_spectrum_ndip(n_peaks=n_peaks, type=type, fixed_height=fixed_height)
+#                 placeholder_obj = make_spectrum_ndip(n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height)
 #
-#                 champion_effs = np.loadtxt("results/champion_eff_tcheb_" + type + str(n_peaks) + '_' + str(
-#                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
-#                 champion_pops = np.loadtxt("results/champion_pop_tcheb_" + type + str(n_peaks) + '_' + str(
-#                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + '.txt')
-#                 # final_populations = np.load("results/final_pop_tcheb_" + type + str(n_peaks) + '_' + str(
-#                 #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', allow_pickle=True)
+#                 champion_effs = np.loadtxt("results/champion_eff_tcheb_" + R_type + str(n_peaks) + '_' + str(
+#                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name + '.txt')
+#                 champion_pops = np.loadtxt("results/champion_pop_tcheb_" + R_type + str(n_peaks) + '_' + str(
+#                     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name + '.txt')
+#                 # final_populations = np.load("results/final_pop_tcheb_" + R_type + str(n_peaks) + '_' + str(
+#                 #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name+'.npy', allow_pickle=True)
 #
 #                 spec = placeholder_obj.spectrum_function(champion_pops[l1], n_peaks,
 #                                                          photon_flux_cell[0], max_height, base)
@@ -667,12 +756,13 @@ cols = cycler("color", pal)
 params = {"axes.prop_cycle": cols}
 plt.rcParams.update(params)
 
-type = "sharp"
+R_type = "sharp"
 fixed_height_loop = [True]
 max_height = 1
 base = 0
+light_source_name = "AM1.5g"
 
-n_junc_loop = [5]
+n_junc_loop = [2]
 
 n_peak_loop = [2, 3, 4]
 
@@ -701,12 +791,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
     for i1, n_peaks in enumerate(n_peak_loop):
         for k1, fixed_height in enumerate(fixed_height_loop):
             placeholder_obj = make_spectrum_ndip(
-                n_peaks=n_peaks, type=type, fixed_height=fixed_height
+                n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
             )
 
             champion_effs = np.loadtxt(
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -714,12 +804,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
             champion_pops = np.loadtxt(
                 "results/champion_pop_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -727,8 +817,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
 
             eff_xr = make_sorted_xr(champion_effs, color_names)
@@ -823,12 +913,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
     for i1, n_peaks in enumerate(n_peak_loop):
         for k1, fixed_height in enumerate(fixed_height_loop):
             placeholder_obj = make_spectrum_ndip(
-                n_peaks=n_peaks, type=type, fixed_height=fixed_height
+                n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
             )
 
             champion_effs = np.loadtxt(
                 "results/champion_eff_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -836,12 +926,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
             champion_pops = np.loadtxt(
                 "results/champion_pop_"
-                + type
+                + R_type
                 + str(n_peaks)
                 + "_"
                 + str(n_junctions)
@@ -849,11 +939,11 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 + str(fixed_height)
                 + str(max_height)
                 + "_"
-                + str(base)
-                + "_spd.txt"
+                + str(base) + "_"  + j01_method + light_source_name
+                + ".txt"
             )
-            # final_populations = np.load("results/final_pop_tcheb_" + type + str(n_peaks) + '_' + str(
-            #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', allow_pickle=True)
+            # final_populations = np.load("results/final_pop_tcheb_" + R_type + str(n_peaks) + '_' + str(
+            #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base) + "_"  + j01_method + light_source_name+'.npy', allow_pickle=True)
             eff_xr = make_sorted_xr(champion_effs, color_names)
             c_xr = make_sorted_xr(champion_pops[:, :n_peaks], color_names)
             w_xr = make_sorted_xr(champion_pops[:, n_peaks : 2 * n_peaks], color_names)
@@ -952,12 +1042,12 @@ offset_ind = 0
 for j1, n_junctions in enumerate(n_junc_loop):
 
     placeholder_obj = make_spectrum_ndip(
-        n_peaks=n_peaks, type=type, fixed_height=fixed_height
+        n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
 
     champion_effs = np.loadtxt(
         "results/champion_eff_"
-        + type
+        + R_type
         + str(n_peaks)
         + "_"
         + str(n_junctions)
@@ -965,12 +1055,12 @@ for j1, n_junctions in enumerate(n_junc_loop):
         + str(fixed_height)
         + str(max_height)
         + "_"
-        + str(base)
-        + "_spd.txt"
+        + str(base) + "_"  + j01_method + light_source_name
+        + ".txt"
     )
     champion_pops = np.loadtxt(
         "results/champion_pop_"
-        + type
+        + R_type
         + str(n_peaks)
         + "_"
         + str(n_junctions)
@@ -978,10 +1068,10 @@ for j1, n_junctions in enumerate(n_junc_loop):
         + str(fixed_height)
         + str(max_height)
         + "_"
-        + str(base)
-        + "_spd.txt"
+        + str(base) + "_"  + j01_method
+        + ".txt"
     )
-    # final_populations = np.load("results/final_pop_tcheb_" + type + str(n_peaks) + '_' + str(
+    # final_populations = np.load("results/final_pop_tcheb_" + R_type + str(n_peaks) + '_' + str(
     #     n_junctions) + '_' + str(fixed_height) + str(max_height) + '_' + str(base)+'.npy', allow_pickle=True)
     eff_xr = make_sorted_xr(champion_effs, color_names)[subset_inds]
     c_xr = make_sorted_xr(champion_pops[:, :n_peaks], color_names)[subset_inds]
@@ -1049,7 +1139,7 @@ photon_flux_eV = LightSource(
 
 champion_pops = np.loadtxt(
     "results/champion_pop_"
-    + type
+    + R_type
     + str(2)
     + "_"
     + str(1)
@@ -1061,7 +1151,7 @@ champion_pops = np.loadtxt(
     + ".txt"
 )
 
-white_ch_pop = champion_pops[-6]
+white_ch_pop = champion_pops[-5]
 spec_white = gen_spectrum_ndip(
     white_ch_pop, 2, photon_flux_cell[0], max_height=1, base=0
 )
@@ -1074,53 +1164,83 @@ Vmax = np.zeros_like(wl_cell)
 Imax_w = np.zeros_like(wl_cell)
 Vmax_w = np.zeros_like(wl_cell)
 
+j01 = np.zeros_like(wl_cell)
+j01_w = np.zeros_like(wl_cell)
+
 for i1, Eg in enumerate(1240 / wl_cell):
     Vmax[i1], Imax[i1] = getIVmax(
-        [Eg], photon_flux_cell[1], photon_flux_cell[0], interval
+        [Eg], photon_flux_cell[1], photon_flux_cell[0], interval,
+        method="no_R"
     )
     Vmax_w[i1], Imax_w[i1] = getIVmax(
-        [Eg], (1 - spec_white) * photon_flux_cell[1], photon_flux_cell[0], interval
+        [Eg], (1 - spec_white) * photon_flux_cell[1], photon_flux_cell[0], interval,
+        x=white_ch_pop,
+        method="perfect_R", n_peaks=2
     )
 
+    j01[i1], _, _, _ = db_cell_calculation_noR([Eg], photon_flux_cell[1],
+                                               photon_flux_cell[0], interval)
+    j01_w[i1], _, _, _ = db_cell_calculation_perfectR([Eg],
+        (1 - spec_white) * photon_flux_cell[1], photon_flux_cell[0], interval,
+        x=white_ch_pop,
+        n_peaks=2)
+
+    # j01[i1] = j01s
+    # j01_w[i1] = np.sum(j01s_w)
+
+
+R_white = gen_spectrum_ndip(white_ch_pop, 2, wl=wl_cell)
 pal = sns.color_palette("husl", 3)
 
-fig, ax = plt.subplots()
+fig, (ax, ax3) = plt.subplots(2,1, gridspec_kw=
+                               {'height_ratios': [3, 1]}, figsize=(6, 6))
 ax2 = ax.twinx()
 
 ax2.fill_between(
     1240 / wl_cell,
     photon_flux_eV.spectrum(1240 / wl_cell)[1] / 1e21,
-    alpha=0.2,
-    color="k",
+    alpha=0.25,
+    color=[0.89, 0.63, 0.19],
 )
+ax.fill_between(1240 / wl_cell, R_white, color="k", alpha=0.2)
 
 ax.plot(1240 / wl_cell, Imax / max(Imax), color=pal[0])
 ax.plot(1240 / wl_cell, Vmax / max(Vmax), color=pal[1])
 ax.plot(1240 / wl_cell, (Imax * Vmax) / np.max(Imax * Vmax), color=pal[2])
+ax.plot(1240 / wl_cell, j01 / max(j01), "--k")
+ax.plot(1240 / wl_cell, j01_w / max(j01_w), "--k")
 
 ax.plot(1240 / wl_cell, Imax_w / max(Imax_w), "--", color=pal[0])
 ax.plot(1240 / wl_cell, Vmax_w / max(Vmax_w), "--", color=pal[1])
 ax.plot(1240 / wl_cell, (Imax_w * Vmax_w) / np.max(Imax_w * Vmax_w), "--", color=pal[2])
 
-ax.plot([0, 0.6], [-1, -1], "k", label="Ideal black cell")
-ax.plot([0, 0.6], [-1, -1], "--k", label="Ideal white cell")
-ax2.axvline(1.12, color="k", linestyle="--", alpha=0.5)
-ax2.axvline(1.34, color="k", linestyle="--", alpha=0.5)
-ax2.set_xlim(0.65, 2.1)
-ax2.set_ylim(0, 4)
+ax3.plot([0, 0.6], [-1, -1], "k", label="Ideal black cell")
+ax3.plot([0, 0.6], [-1, -1], "--k", label="Ideal grey cell")
+# ax2.axvline(1.12, color="k", linestyle="--", alpha=0.5)
+# ax2.axvline(1.34, color="k", linestyle="--", alpha=0.5)
+ax2.set_xlim(0.65, 3)
+ax2.set_ylim(0, 4.08)
 ax.set_ylim(0, 1.02)
-ax.set_xlabel("Bandgap (eV)")
+ax3.set_xlabel("Bandgap (eV)")
 ax2.set_ylabel(r"Photon flux ($\times 10^{21}$ eV$^{-1}$ m$^{-2}$ s$^{-1}$)")
-ax.set_ylabel("Normalized $J_{max}$, $V_{max}$, $\eta_{max}$")
-ax.text(1.2, 0.56, r"$J_{max}$", color=pal[0], size=12, weight="bold")
-ax.text(1.15, 0.2, r"$V_{max}$", color=pal[1], size=12, weight="bold")
-ax.text(1.3, 0.95, r"$\eta$", color=pal[2], size=12, weight="bold")
+ax.set_ylabel("Normalized $J_{MPP}$, $V_{MPP}$, $\eta_{MPP}$")
+ax.text(1.05, 0.56, r"$J_{MPP}$", color=pal[0], size=12, weight="bold")
+ax.text(1.15, 0.18, r"$V_{MPP}$", color=pal[1], size=12, weight="bold")
+ax.text(1.3, 0.9, r"$\eta$", color=pal[2], size=12, weight="bold")
+ax.text(2.09, 0.94, r"$R_{grey}$", color="k", size=12, weight="bold", alpha=0.5)
 
 ax2.spines["right"].set_color("gray")
 ax2.yaxis.label.set_color("gray")
 ax2.tick_params(axis="y", colors="gray")
 
-ax.legend(loc="upper right")
+ax3.semilogy(1240/wl_cell, j01, '-k')
+ax3.semilogy(1240/wl_cell, j01_w, '--k')
+
+ax3.set_ylim(10e-44, 10e-18)
+ax3.set_xlim(0.65, 3)
+ax3.set_ylabel(r"$J_{01}$ (A m$^{-2}$)")
+ax3.legend(loc="upper right")
+# ax.legend(loc="upper right")
 plt.show()
 
 # from colour.plotting import plot_RGB_chromaticities_in_chromaticity_diagram_CIE1931

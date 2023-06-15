@@ -87,7 +87,7 @@ for m1, lwl in enumerate(label_wls):
     tick_orig[m1] = p0[:2]
     tick_dir[m1] = p0[:2] + 0.02 * mp
 
-fig, ax = plt.subplots(1, figsize=(4, 3))
+fig, ax = plt.subplots(1, figsize=(3.7, 4.3))
 
 # ax.set_aspect('equal')
 ax.set_facecolor(s_i_RGB)

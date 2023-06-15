@@ -14,6 +14,13 @@ from os import path
 import xarray as xr
 import seaborn as sns
 
+from matplotlib import rc
+rc("font", **{"family": "sans-serif",
+              "sans-serif": ["Helvetica"],
+              "size": 13})
+
+
+
 force_rerun = False
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
@@ -38,7 +45,7 @@ max_trials_col = (
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
-type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
+R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
@@ -152,7 +159,7 @@ if __name__ == "__main__":
 
                 save_name = (
                     "results/champion_eff_"
-                    + type
+                    + R_type
                     + str(n_peaks)
                     + "_"
                     + str(n_junctions)
@@ -179,7 +186,7 @@ if __name__ == "__main__":
                         photon_flux_cell,
                         n_peaks=n_peaks,
                         n_junctions=n_junctions,
-                        type=type,
+                        R_type=R_type,
                         fixed_height=fixed_height,
                         n_trials=n_trials,
                         initial_iters=initial_iters,
@@ -202,7 +209,7 @@ if __name__ == "__main__":
 
                     np.savetxt(
                         "results/champion_eff_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -216,7 +223,7 @@ if __name__ == "__main__":
                     )
                     np.savetxt(
                         "results/champion_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -230,7 +237,7 @@ if __name__ == "__main__":
                     )
                     np.save(
                         "results/final_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -254,7 +261,7 @@ if __name__ == "__main__":
 
                     champion_effs = np.loadtxt(
                         "results/champion_eff_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -267,7 +274,7 @@ if __name__ == "__main__":
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
-                        + type
+                        + R_type
                         + str(n_peaks)
                         + "_"
                         + str(n_junctions)
@@ -285,11 +292,11 @@ if __name__ == "__main__":
                         # best_Eg[i1, l1] = champion_pops[l1, -n_junctions:] if n_junctions > 0 else fixed_bandgaps
                         champion_pop_array[i1, l1] = champion_pops[l1]
 
-    # unconst_1j = np.loadtxt("results/champion_eff_" + type + str(2) + '_' + str(
+    # unconst_1j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
     #                     1) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
-    # unconst_2j = np.loadtxt("results/champion_eff_" + type + str(2) + '_' + str(
+    # unconst_2j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
     #                     2) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
-    # unconst_3j = np.loadtxt("results/champion_eff_" + type + str(2) + '_' + str(
+    # unconst_3j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
     #     3) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
     #
     # unconst = [unconst_1j, unconst_2j, unconst_3j]
@@ -383,7 +390,8 @@ if __name__ == "__main__":
     # plotting for triple junction
 
     black_cell_eff = (
-        getPmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval, upperE=1240/min(wl_cell)) / 10
+        getPmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
+                upperE=1240/min(wl_cell), method="no_R") / 10
     )
 
     eff_xr = make_sorted_xr(max_effs[0], color_names, black_cell_eff)
@@ -392,9 +400,12 @@ if __name__ == "__main__":
 
     pal = sns.color_palette("husl", 3)
 
-    fig, ax = plt.subplots(1)
+    fig, (ax, ax2) = plt.subplots(2, 1,
+                           figsize=(6, 5.5),
+                           gridspec_kw={'height_ratios': [1, 1.65]},
+                           )
 
-    ax2 = ax.twinx()
+    # ax2 = ax.twinx()
 
     J1_c = np.zeros(len(color_XYZ) + 1)
     J2_c = np.zeros(len(color_XYZ) + 1)
@@ -403,31 +414,28 @@ if __name__ == "__main__":
     for k1 in range(len(color_XYZ)):
         spec = gen_spectrum_ndip(pop_xr[k1].data, n_peaks=2, wl=wl_cell)
         _, Is = getIVmax(
-            fixed_bandgaps, (1 - spec) * photon_flux_cell[1], wl_cell, interval
+            fixed_bandgaps, (1 - spec) * photon_flux_cell[1], wl_cell, interval,
+            upperE=1240/min(wl_cell), method="perfect_R", n_peaks=2,
+            x=pop_xr[k1].data,
         )
         J1_c[k1] = Is[0]
         J2_c[k1] = Is[1]
         J3_c[k1] = Is[2]
 
-    _, Is = getIVmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval)
+    _, Is = getIVmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
+                     upperE=1240 / min(wl_cell), method="perfect_R", n_peaks=2,
+                     x=pop_xr[k1].data,
+                     )
     J1_c[-1] = Is[0]
     J2_c[-1] = Is[1]
     J3_c[-1] = Is[2]
-    ax2.plot(
-        eff_xr.color,
-        J1_c / 10,
-        label="InGaP",
-        color=pal[0],
-        marker=shapes[1],
-        alpha=0.5,
-        linestyle="--",
-    )
+
     ax2.plot(
         eff_xr.color,
         J2_c / 10,
         label="GaAs",
-        color=pal[0],
-        marker=shapes[2],
+        color=pal[1],
+        # marker=shapes[2],
         alpha=0.5,
         linestyle="--",
     )
@@ -435,58 +443,73 @@ if __name__ == "__main__":
         eff_xr.color,
         J3_c / 10,
         label="Ge",
-        color=pal[0],
-        marker="s",
+        color=pal[2],
+        # marker="s",
         alpha=0.5,
         linestyle="--",
     )
-
+    ax2.plot(
+        eff_xr.color,
+        J1_c / 10,
+        label="InGaP",
+        color=pal[0],
+        marker=shapes[1],
+        alpha=0.5,
+        linestyle="-",
+    )
     ax.plot(
         eff_xr.color.data,
         eff_xr,
-        marker=shapes[0],
+        marker='o',
         linestyle="none",
         markersize=6,
         color="k",
     )
     ax.xaxis.set_ticks(ax.get_xticks())
-    ax.set_xticklabels(
+    ax2.set_xticklabels(
         eff_xr.color.data, rotation=45, ha="right", rotation_mode="anchor"
     )
+    ax.set_xticklabels([])
     ax.set_ylabel("Efficiency (%)")
-    ax.arrow(
-        4.5,
-        41,
-        -4.1,
-        0,
-        head_width=0.7,
-        head_length=0.5,
-        overhang=0.2,
-        color="k",
-        alpha=0.6,
-    )
-    ax2.arrow(
-        22,
-        15,
-        1.75,
-        0,
-        head_width=0.7,
-        head_length=0.5,
-        overhang=0.2,
-        color=pal[0],
-        alpha=0.6,
-    )
+    # ax.arrow(
+    #     4.5,
+    #     41,
+    #     -4.1,
+    #     0,
+    #     head_width=0.7,
+    #     head_length=0.5,
+    #     overhang=0.2,
+    #     color="k",
+    #     alpha=0.6,
+    # )
+    # ax2.arrow(
+    #     22,
+    #     15,
+    #     1.75,
+    #     0,
+    #     head_width=0.7,
+    #     head_length=0.5,
+    #     overhang=0.2,
+    #     color=pal[0],
+    #     alpha=0.6,
+    # )
     ax2.set_ylabel(r"$J_{max}$ per junction")
-    ax2.legend(loc=(0.8, 0.1))
-    ax.set_ylim(12, 44)
-    ax2.set_ylim(0, 35)
-    apply_formatting(
-        ax, color_labels=eff_xr.color.data, n_colors=len(eff_xr.color.data)
-    )
-    ax2.yaxis.label.set_color(pal[0])  # setting up Y-axis label color to blue
-    ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
-    ax2.tick_params(direction="in", which="both", top=True, right=True, colors=pal[0])
-    ax2.spines["right"].set_color(pal[0])  # setting up Y-axis tick color to red
-    add_colour_patches(ax, 0.75, eff_xr.color.data)
     plt.tight_layout()
+    ax2.legend(loc=(0.05, 0.55))
+    ax.set_ylim(12, 45)
+    ax2.set_ylim(0, 30)
+
+    apply_formatting(
+        ax2, color_labels=eff_xr.color.data, n_colors=len(eff_xr.color.data)
+    )
+    apply_formatting(
+        ax, n_colors=len(eff_xr.color.data)
+    )
+    # ax2.yaxis.label.set_color(pal[0])  # setting up Y-axis label color to blue
+    ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
+    # ax2.tick_params(direction="in", which="both", top=True, right=True, colors=pal[0])
+    # ax2.spines["right"].set_color(pal[0])  # setting up Y-axis tick color to red
+    add_colour_patches(ax2, 0.75, eff_xr.color.data)
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.1)
     plt.show()

@@ -103,7 +103,8 @@ def wavelength_to_rgb(wavelengths, gamma=0.8):
     return RGBA
 
 
-def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr):
+def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr,
+                       color_coords="XYZ"):
     # width is with an axis spacing of "1" for the x-axis colour labels
 
     ymin = ax.get_ylim()[0]
@@ -113,6 +114,7 @@ def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr):
 
     h_p = width * w / len(labels)
     h_ax = h_p * (ymax - ymin) / h
+    print("h", h_ax)
 
     for l1, lab in enumerate(labels):
 
@@ -123,8 +125,19 @@ def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr):
         else:
             target = [0, 0, 0]
 
-        color_xyz_t = XYZColor(*target)
-        color_srgb_t = convert_color(color_xyz_t, sRGBColor).get_value_tuple()
+        if color_coords == "XYZ":
+
+            color_xyz_t = XYZColor(*target)
+            color_srgb_t = convert_color(color_xyz_t, sRGBColor,
+                                         target_illuminant="d65")#.get_value_tuple()
+            color_srgb_t = [
+                color_srgb_t.clamped_rgb_r,
+                color_srgb_t.clamped_rgb_g,
+                color_srgb_t.clamped_rgb_b,
+            ]
+
+        else:
+            color_srgb_t = color_XYZ[l1]
 
         ax.add_patch(
             Rectangle(
@@ -195,3 +208,28 @@ def make_sorted_xr(
     eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim="color")
 
     return eff_xr
+
+
+def sRGB_color_list(order="sorted"):
+
+    _, XYZ_list = load_colorchecker(source="BabelColor",
+                                                illuminant="AM1.5g",
+                            output_coords="XYZ")
+
+    rgb = np.zeros((len(XYZ_list), 3))
+
+    for i1, XYZ in enumerate(XYZ_list):
+        color_xyz_t = XYZColor(*XYZ)
+        color_srgb_t = convert_color(color_xyz_t, sRGBColor,
+                                     target_illuminant="d65")#.get_value_tuple()
+        rgb[i1] = [
+            color_srgb_t.clamped_rgb_r,
+            color_srgb_t.clamped_rgb_g,
+            color_srgb_t.clamped_rgb_b,
+        ]
+
+    if order == "sorted":
+        return rgb[np.argsort(color_XYZ[:, 1])]
+
+    else:
+        return rgb

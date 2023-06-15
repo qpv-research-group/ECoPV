@@ -3,6 +3,7 @@ from typing import Sequence, Tuple
 import pathlib
 from scipy.interpolate import interp1d
 from os.path import join
+from solcore.constants import h, c
 
 from colormath.color_objects import (
     LabColor,
@@ -12,7 +13,7 @@ from colormath.color_objects import (
 from colormath.color_conversions import convert_color
 
 current_path = pathlib.Path(__file__).parent.resolve()
-
+hc = h * c
 
 def load_cmf(wl: np.ndarray) -> np.ndarray:
     """Load the CIE 1931 2 degree standard observer color matching functions and interpolate them to the given wavelengths"""
@@ -59,8 +60,9 @@ def gen_spectrum_ndip(
 ) -> np.ndarray:  # center and width in nm
     """Generate a reflection spectrum with n_peaks rectangular peaks of fixed height.
 
-    :param pop: The population vector, which contains the peak centres and widths. The first n_peaks elements are the centres,
-                the next n_peaks elements are the widths.
+    :param pop: The population vector, which contains the peak centres and widths.
+        The first n_peaks elements are the centres, the next n_peaks elements are the
+        widths.
     :param n_peaks: The number of peaks in the reflection spectrum
     :param wl: vector of wavelengths
     :param max_height: height of the reflection peaks (0-1)
@@ -188,7 +190,7 @@ class make_spectrum_ndip:
         self,
         n_peaks: int = 2,
         target: np.ndarray = np.array([0, 0, 0]),
-        type: str = "sharp",
+        R_type: str = "sharp",
         fixed_height: bool = True,
         w_bounds: Sequence[float] = None,
         h_bounds: Sequence[float] = [0.01, 1],
@@ -198,13 +200,13 @@ class make_spectrum_ndip:
 
         :param n_peaks: The number of peaks in the reflection spectrum
         :param target: The XYZ coordinates of the target colour, used to set the bounds on the peak widths
-        :param type: The type of spectrum to be generated. Current options are "sharp" and "gauss"
+        :param R_type: The type of spectrum to be generated. Current options are "sharp" and "gauss"
         :param fixed_height: Whether the peaks should have a fixed height
         :param w_bounds: The bounds on the peak widths. If None, the bounds will be set automatically
         :param h_bounds: The bounds on the peak heights. Only used if fixed_height is False
         """
 
-        self.c_bounds = [380, 780]
+        self.c_bounds = [380, 730]
         self.fixed_height = fixed_height
         self.n_peaks = n_peaks
 
@@ -212,7 +214,8 @@ class make_spectrum_ndip:
             if fixed_height:
                 self.w_bounds = [
                     0, # lower width bound
-                    np.max([120 / n_peaks, (350 / n_peaks) * target[1]]), # upper width bound
+                    np.max([160 / n_peaks, (350 / n_peaks) * target[1]]), # upper
+                    # width bound
                 ]
                 # width bounds are generated based on the Y (luminance) of the target colour and the number of peaks.
                 # This was done by looking at the approximate number of photos needed to create a colour of a certain Y
@@ -226,7 +229,7 @@ class make_spectrum_ndip:
         else:
             self.w_bounds = w_bounds
 
-        if type == "sharp":
+        if R_type == "sharp":
             if fixed_height:
                 self.n_spectrum_params = 2 * n_peaks
                 self.spectrum_function = gen_spectrum_ndip
@@ -236,7 +239,7 @@ class make_spectrum_ndip:
                 self.n_spectrum_params = 3 * n_peaks
                 self.spectrum_function = gen_spectrum_ndip_varyheight
 
-        elif type == "gauss":
+        elif R_type == "gauss":
             if fixed_height:
                 self.n_spectrum_params = 2 * n_peaks
                 self.spectrum_function = gen_spectrum_ngauss
@@ -273,20 +276,22 @@ class make_spectrum_ndip:
 
 
 def spec_to_XYZ(
-    spec: np.ndarray, solar_spec: np.ndarray, cmf: np.ndarray, interval: float
+    spec: np.ndarray, illuminant: np.ndarray, cmf: np.ndarray, interval: float
 ) -> Tuple[float, float, float]:
     """Convert an incident spectrum (spectral power distribution, W m-2 nm-1) to XYZ colour coordinates.
 
     :param spec: The reflectance spectrum
-    :param solar_spec: The solar spectrum (W m-2 nm-1)
-    :param cmf: The CIE colour matching functions at the same wavelengths as spec and solar_spec
-    :param interval: The wavelength interval between each element of spec, solar_spec and cmf
+    :param illuminant: The illuminant (W m-2 nm-1)
+    :param cmf: The CIE colour matching functions at the same wavelengths as spec and
+            the illuminant
+    :param interval: The wavelength interval between each element of spec, solar_spec
+            and cmf
     """
 
-    Ymax = np.sum(interval * cmf[:, 1] * solar_spec)
-    X = np.sum(interval * cmf[:, 0] * solar_spec * spec)
-    Y = np.sum(interval * cmf[:, 1] * solar_spec * spec)
-    Z = np.sum(interval * cmf[:, 2] * solar_spec * spec)
+    Ymax = np.trapz(cmf[:, 1] * illuminant, dx=interval)
+    X = np.trapz(cmf[:, 0] * illuminant * spec, dx=interval)
+    Y = np.trapz(cmf[:, 1] * illuminant * spec, dx=interval)
+    Z = np.trapz(cmf[:, 2] * illuminant * spec, dx=interval)
 
     if Ymax == 0:
         return (X, Y, Z)
@@ -323,3 +328,17 @@ def XYZ_from_pop_dips(pop, n_peaks, photon_flux, interval):
     )
 
     return XYZ
+
+def load_D50(wl):
+
+    data = np.loadtxt(join(current_path, "data", "CIE_std_illum_D50.csv"),
+                      delimiter=",")
+
+    return np.interp(wl, data[:,0], data[:,1])
+
+def load_D65(wl):
+
+    data = np.loadtxt(join(current_path, "data", "CIE_std_illum_D65.csv"),
+                      delimiter=",")
+
+    return np.interp(wl, data[:,0], data[:,1])
