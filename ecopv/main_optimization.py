@@ -293,7 +293,7 @@ def multiple_color_cells(
                 output_units="power_density_per_nm",
             ).spectrum(wl_visible)[1]
         )
-        print("Loaded AM1.5g")
+        # print("Loaded AM1.5g")
 
     elif illuminant == "BB":
 
@@ -423,10 +423,10 @@ def multiple_color_cells(
             if len(max_eff_acc) > 0:
 
                 print(
-                    color_names[k1],
+                    color_names[k1], "Max. efficiency:",
                     np.round(np.max(max_eff_acc), 3),
-                    np.round(np.mean(max_eff_acc), 3),
-                    np.round(np.std(max_eff_acc), 6),
+                    # np.round(np.mean(max_eff_acc), 3),
+                    # np.round(np.std(max_eff_acc), 6),
                 )
 
                 ch_eff = np.max(max_eff_acc)
@@ -513,8 +513,8 @@ def multiple_color_cells(
                     print(
                         "Champion pop (best color):",
                         champion_pop[k1],
-                        "width limits:",
-                        spectrum_obj.get_bounds(),
+                        # "width limits:",
+                        # spectrum_obj.get_bounds(),
                     )
                     conv[k1] = True
 
