@@ -16,10 +16,9 @@ import seaborn as sns
 
 from matplotlib import rc
 
-rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 14})
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
-
-force_rerun = False
+force_rerun = True
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
@@ -27,7 +26,7 @@ col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color
 acceptable_eff_change = 1e-4  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
 # col_thresh and efficiency change is less than this.
 
-n_trials = 10  # number of islands which will run concurrently
+n_trials = 8  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(
     300, 4000, interval
@@ -39,7 +38,7 @@ add_iters = 100  # additional evolutions added each time if color threshold/conv
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
 max_trials_col = (
-    3 * add_iters
+    6 * add_iters
 )  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
@@ -57,6 +56,8 @@ base = 0  # baseline fixed reflection (fixed at this value for both fixed_height
 n_junc_loop = [0, 1, 2]  # loop through these numbers of junctions
 
 n_peak_loop = [2]  # loop through these numbers of reflection peaks
+
+ERE_top = 0.1 # external radiative efficiency of the top (non-Si) junctions
 
 patch_width = 0.75
 
@@ -93,7 +94,6 @@ linetypes = ['-', '--']
 
 loop_n = 0
 
-# precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
 fixed_height_loop = [True]
@@ -105,7 +105,7 @@ for n_junctions in n_junc_loop:
 
     if n_junctions > 0:
 
-        save_loc = save_path + "/champion_pop_{}juncs_{}spec_Si.txt".format(
+        save_loc = save_path + "/champion_pop_{}juncs_{}spec_Si_ERE.txt".format(
             n_junctions, light_source_name
         )
 
@@ -115,7 +115,7 @@ for n_junctions in n_junc_loop:
                 n_junctions,
                 photon_flux_cell,
                 power_in=light_source.power_density,
-                eta_ext=1,
+                eta_ext=[ERE_top]*n_junctions + [0.02],
                 fixed_bandgaps=fixed_bandgaps,
             )
 
@@ -149,7 +149,7 @@ if __name__ == "__main__":
             if n_junctions > 0:
                 Eg_guess = np.loadtxt(
                     save_path
-                    + "/champion_pop_{}juncs_{}spec_Si.txt".format(
+                    + "/champion_pop_{}juncs_{}spec_Si_ERE".format(
                         n_junctions, light_source_name
                     ),
                     ndmin=1,
@@ -171,7 +171,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_Si_spd.txt"
+                    + "_Si_ERE.txt"
                 )
 
                 if not path.exists(save_name) or force_rerun:
@@ -183,6 +183,11 @@ if __name__ == "__main__":
                         "fixed height:",
                         fixed_height,
                     )
+
+                    rad_eff_int = [1.6/100] + [ERE_top]*n_junctions
+                    rad_eff_int = rad_eff_int[::-1]
+                    print(rad_eff_int)
+
                     result = multiple_color_cells(
                         color_XYZ,
                         color_names,
@@ -204,6 +209,8 @@ if __name__ == "__main__":
                         plot=False,
                         power_in=light_source.power_density,
                         return_archipelagos=True,
+                        j01_method=j01_method,
+                        rad_eff=rad_eff_int,
                     )
 
                     champion_effs = result["champion_eff"]
@@ -222,7 +229,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_Si_spd.txt",
+                        + "_Si_ERE.txt",
                         champion_effs,
                     )
                     np.savetxt(
@@ -236,7 +243,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_Si_spd.txt",
+                        + "_Si_ERE.txt",
                         champion_pops,
                     )
                     np.save(
@@ -274,7 +281,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_Si_spd.txt"
+                        + "_Si_ERE.txt"
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
@@ -287,7 +294,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_Si_spd.txt"
+                        + "_Si_ERE.txt"
                     )
 
                     max_effs[i1] = champion_effs
@@ -338,8 +345,27 @@ if __name__ == "__main__":
 
     unconst = [unconst_1j, unconst_2j, unconst_3j]
 
+    unconst_ERE = []
+
+    for nj in [1, 2, 3]:
+        unconst_ERE.append(np.loadtxt(
+            "results/champion_eff_"
+            + R_type
+            + str(2)
+            + "_"
+            + str(nj)
+            + "_"
+            + "True"
+            + str(max_height)
+            + "_"
+            + str(base)
+            + "_" + j01_method + light_source_name + "ERE.txt",
+        ))
+
     black_cell_eff = np.array([33.8, 45.9, 51.8, 55.5, 57.8, 59.7])
+    black_cell_eff_ERE = np.array([30.213, 41.853, 48.017])
     unconst_xr = []
+    unconst_xr_ERE = []
 
     for k1, unc in enumerate(unconst):
         eff_xr_col = xr.DataArray(
@@ -360,13 +386,32 @@ if __name__ == "__main__":
 
         unconst_xr.append(xr.concat([eff_xr_col, eff_xr_bw], dim="color"))
 
+
+        eff_xr_col = xr.DataArray(
+            data=unconst_ERE[k1][:18], dims=["color"], coords={"color": Y_cols}
+        )
+
+        eff_xr_col = eff_xr_col.sortby("color", ascending=True)
+        eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
+
+        eff_xr_bw = xr.DataArray(
+            data=unconst_ERE[k1][18:].tolist() + [black_cell_eff_ERE[k1]],
+            dims=["color"],
+            coords={"color": color_names[18:].tolist() + ["Black"]},
+        )
+
+        eff_xr_bw.data = eff_xr_bw.data[::-1]
+        eff_xr_bw.coords["color"] = eff_xr_bw.coords["color"][::-1]
+
+        unconst_xr_ERE.append(xr.concat([eff_xr_col, eff_xr_bw], dim="color"))
+
     pal = sns.color_palette("husl", 3)
     # pal = np.array([pal[1], pal[0], pal[2]])
     shapes = ["o", "*", "^", ".", "*", "v", "s", "x"]
 
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(14, 5.5))
 
-    black_Eg = [[1.12], [1.72918698, 1.12], [2.0054986, 1.4983, 1.12]]
+    black_Eg = [[1.12], [1.73015, 1.12], [2.006471, 1.49885, 1.12]]
 
     for i1 in n_junc_loop:
         eff_xr_col = xr.DataArray(
@@ -376,11 +421,9 @@ if __name__ == "__main__":
         eff_xr_col = eff_xr_col.sortby("color", ascending=True)
         eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
 
-        black_cell_eff = (
-            getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
-                    upperE=1240/min(wl_cell), method="no_R") / 10)
-
-        print(black_cell_eff)
+        black_cell_eff = getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                    upperE=1240/min(wl_cell), method="no_R",
+                    rad_eff=[ERE_top]*i1 + [1.6/100]) / 10
 
         eff_xr_bw = xr.DataArray(
             data=max_effs[i1, 18:].flatten().tolist() + [black_cell_eff],
@@ -453,12 +496,13 @@ if __name__ == "__main__":
 
                 I_arr[l1] = getIVmax(
                     Egs, (1 - spec) * photon_flux_cell[1], wl_cell, interval, pop,
-                    n_peaks=2,
+                    n_peaks=2, rad_eff=[ERE_top]*n_junctions + [1.6/100],
                 )[1]
 
             else:
                 I_arr[l1] = getIVmax(black_Eg[i1], photon_flux_cell[1], wl_cell,
                                     interval,
+                                     rad_eff=[ERE_top] * n_junctions + [1.6 / 100],
                              method="no_R")[1]
 
         if i1 > 0:
@@ -491,7 +535,7 @@ if __name__ == "__main__":
     ax2.text(6, 1.49, r"3J cell - middle cell $E_g$")
     ax2.text(6, 1.71, r"2J cell - top cell $E_g$")
     ax2.text(6, 1.965, r"3J cell - top cell $E_g$")
-    ax.set_ylim(21,)
+    ax.set_ylim(17,)
     ax2.set_ylim(1.35,)
 
     apply_formatting(ax, color_labels=eff_xr.color.data)
@@ -505,3 +549,199 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
+
+
+    # New plot
+
+    label = ['1 junction', '2 junctions', '3 junctions']
+
+    fig, axes = plt.subplots(3, 1, figsize=(5.5, 6.5), sharex=True)
+
+    for i1 in n_junc_loop:
+        eff_xr_col = xr.DataArray(
+            data=max_effs[i1, :18].flatten(), dims=["color"], coords={"color": Y_cols}
+        )
+
+        eff_xr_col = eff_xr_col.sortby("color", ascending=True)
+        eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
+
+        black_cell_eff = getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                                 upperE=1240 / min(wl_cell), method="no_R",
+                                 rad_eff=[ERE_top] * i1 + [1.6 / 100]) / 10
+
+        eff_xr_bw = xr.DataArray(
+            data=max_effs[i1, 18:].flatten().tolist() + [black_cell_eff],
+            dims=["color"],
+            coords={"color": color_names[18:].tolist() + ["Black"]},
+        )
+
+        eff_xr_bw.data = eff_xr_bw.data[::-1]
+        eff_xr_bw.coords["color"] = eff_xr_bw.coords["color"][::-1]
+
+        eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim="color")
+
+        axes[i1].plot(
+            eff_xr.color.data,
+            eff_xr.data,
+            mfc='none',
+            marker=shapes[0],
+            color=pal[0],
+        )
+
+        axes[i1].plot(
+            eff_xr.color.data,
+            unconst_xr_ERE[i1],
+            mfc='none',
+            marker=shapes[1],
+            color=pal[1],
+        )
+
+        axes[i1].plot(
+            eff_xr.color.data,
+            unconst_xr[i1],
+            mfc='none',
+            marker=shapes[2],
+            color=pal[2],
+        )
+
+        axes[i1].grid('both')
+        axes[i1].set_ylim(0.9*np.min(eff_xr.data), 1.1*np.max(unconst_xr[i1]))
+        axes[i1].text(0.1, 1.02*np.max(unconst_xr[i1]), label[i1])
+        apply_formatting(axes[i1], n_colors=len(eff_xr.color.data))
+        axes[i1].set_ylabel("Efficiency (%)")
+
+    axes[1].legend(['Constrained $E_g$, limit ERE', 'Unconstrained $E_g$, limit ERE',
+                    'Unconstrained $E_g$, ERE = 100%'],
+                   labelspacing=0.1)
+
+    apply_formatting(axes[2], color_labels=eff_xr.color.data)
+    plt.tight_layout()
+    add_colour_patches(axes[2], patch_width, eff_xr.color.data, rgb_colors,
+                       color_coords='rgb')
+    plt.subplots_adjust(wspace=0, hspace=0.05)
+    plt.show()
+
+
+
+    # New plot - fractional loss
+
+    label = ['1 junction', '2 junctions', '3 junctions']
+
+    fig, axes = plt.subplots(3, 1, figsize=(5.5, 6.5), sharex=True)
+
+    for i1 in n_junc_loop:
+        eff_xr_col = xr.DataArray(
+            data=max_effs[i1, :18].flatten(), dims=["color"], coords={"color": Y_cols}
+        )
+
+        eff_xr_col = eff_xr_col.sortby("color", ascending=True)
+        eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
+
+        black_cell_eff = getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                                 upperE=1240 / min(wl_cell), method="no_R",
+                                 rad_eff=[ERE_top] * i1 + [1.6 / 100]) / 10
+
+        eff_xr_bw = xr.DataArray(
+            data=max_effs[i1, 18:].flatten().tolist() + [black_cell_eff],
+            dims=["color"],
+            coords={"color": color_names[18:].tolist() + ["Black"]},
+        )
+
+        eff_xr_bw.data = eff_xr_bw.data[::-1]
+        eff_xr_bw.coords["color"] = eff_xr_bw.coords["color"][::-1]
+
+        eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim="color")
+
+        axes[i1].plot(
+            eff_xr.color.data,
+            eff_xr.data/unconst_xr_ERE[i1].data,
+            mfc='none',
+            marker=shapes[i1],
+            color=pal[0],
+        )
+
+        axes[i1].plot(
+            eff_xr.color.data,
+            unconst_xr_ERE[i1]/unconst_xr_ERE[i1].data,
+            mfc='none',
+            marker=shapes[i1],
+            color=pal[1],
+        )
+
+        axes[i1].grid('both')
+        # axes[i1].set_ylim(0.9*np.min(eff_xr.data), 1.1*np.max(unconst_xr[i1]))
+        # axes[i1].text(0.1, 1.02*np.max(unconst_xr[i1]), label[i1])
+        apply_formatting(axes[i1], n_colors=len(eff_xr.color.data))
+        axes[i1].set_ylabel("Efficiency (%)")
+
+    axes[1].legend(['Constrained $E_g$, limit ERE', 'Unconstrained $E_g$, limit ERE',
+                    'Unconstrained $E_g$, ERE = 100%'],
+                   labelspacing=0.1)
+
+    apply_formatting(axes[2], color_labels=eff_xr.color.data)
+    plt.tight_layout()
+    add_colour_patches(axes[2], patch_width, eff_xr.color.data, rgb_colors,
+                       color_coords='rgb')
+    plt.subplots_adjust(wspace=0, hspace=0.05)
+    plt.show()
+
+
+
+    label = ['1 junction', '2 junctions', '3 junctions']
+
+    fig, axes = plt.subplots(3, 1, figsize=(5.5, 6.5), sharex=True)
+
+    eff_xr_list = []
+
+    for i1 in n_junc_loop:
+        eff_xr_col = xr.DataArray(
+            data=max_effs[i1, :18].flatten(), dims=["color"], coords={"color": Y_cols}
+        )
+
+        eff_xr_col = eff_xr_col.sortby("color", ascending=True)
+        eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
+
+        black_cell_eff = getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval,
+                                 upperE=1240 / min(wl_cell), method="no_R",
+                                 rad_eff=[ERE_top] * i1 + [1.6 / 100]) / 10
+
+        eff_xr_bw = xr.DataArray(
+            data=max_effs[i1, 18:].flatten().tolist() + [black_cell_eff],
+            dims=["color"],
+            coords={"color": color_names[18:].tolist() + ["Black"]},
+        )
+
+        eff_xr_bw.data = eff_xr_bw.data[::-1]
+        eff_xr_bw.coords["color"] = eff_xr_bw.coords["color"][::-1]
+
+        eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim="color")
+
+        eff_xr_list.append(eff_xr)
+
+        if i1 > 0:
+            axes[i1].plot(
+                eff_xr.color.data,
+                eff_xr.data/eff_xr_list[0].data,
+                mfc='none',
+                marker=shapes[i1],
+                color=pal[0],
+            )
+
+
+            axes[i1].grid('both')
+            # axes[i1].set_ylim(0.9*np.min(eff_xr.data), 1.1*np.max(unconst_xr[i1]))
+            # axes[i1].text(0.1, 1.02*np.max(unconst_xr[i1]), label[i1])
+            apply_formatting(axes[i1], n_colors=len(eff_xr.color.data))
+            axes[i1].set_ylabel("Efficiency (%)")
+
+    axes[1].legend(['Constrained $E_g$, limit ERE', 'Unconstrained $E_g$, limit ERE',
+                    'Unconstrained $E_g$, ERE = 100%'],
+                   labelspacing=0.1)
+
+    apply_formatting(axes[2], color_labels=eff_xr.color.data)
+    plt.tight_layout()
+    add_colour_patches(axes[2], patch_width, eff_xr.color.data, rgb_colors,
+                       color_coords='rgb')
+    plt.subplots_adjust(wspace=0, hspace=0.05)
+    plt.show()
+

@@ -69,7 +69,7 @@ def db_cell_calculation_noR(
     for i, eg in enumerate(egs):
 
         j01s[i] = (
-            (pref / rad_eff)
+            (pref / rad_eff[i])
             * (eg**2 + 2 * eg * (kbT) + 2 * (kbT) ** 2)
             * np.exp(-(eg) / (kbT))
         )
@@ -162,7 +162,7 @@ def db_cell_calculation_perfectR(
         loop_limits[0, 0] = np.max([eg, loop_limits[0,0]])
 
         for lims in loop_limits:
-            j01s[i] += (pref/rad_eff)*indefinite_integral_J0(lims[0], lims[1])
+            j01s[i] += (pref/rad_eff[i])*indefinite_integral_J0(lims[0], lims[1])
 
         jscs[i] = (
             q
@@ -219,7 +219,7 @@ def db_cell_calculation_numericalR(
         wl_inds = np.all((wl < 1240 / eg, wl > 1240 / upperE_j01), axis=0)
         wl_slice = wl[wl_inds]
         # print("numerical", eg, np.sum(wl_inds))
-        j01s[i] = (pref_wl / rad_eff) * np.trapz(
+        j01s[i] = (pref_wl / rad_eff[i]) * np.trapz(
             (1 - R[wl_inds]) * np.exp(-wl_exp_const / wl_slice) / (wl_slice) ** 4,
             wl_slice)
 
@@ -243,7 +243,7 @@ def getPmax(
     wl: np.ndarray,
     interval: float,
     x: Sequence[float] = None,
-    rad_eff: int = 1,
+    rad_eff: float = 1,
     upperE: float = 4.43,
     method: str = "perfect_R",
     n_peaks: int = 2,
@@ -265,7 +265,10 @@ def getPmax(
         into account when calculating the Jsc (light-generated current).
     :param n_peaks: Number of peaks in the reflection spectrum
 
-   """
+    """
+
+    if type(rad_eff) == float or type(rad_eff) == int:
+        rad_eff = np.full_like(egs, rad_eff, dtype=float)
 
     db_cell_calculation = {
         'perfect_R': db_cell_calculation_perfectR,

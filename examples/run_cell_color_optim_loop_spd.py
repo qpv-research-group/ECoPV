@@ -10,7 +10,7 @@ import pygmo as pg
 from os import path
 import pandas as pd
 
-force_rerun = False
+force_rerun = True
 force_rerun_ideal = False
 include_minimum_effs = False
 include_seed_population = False
@@ -52,6 +52,8 @@ base = 0
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
 n_peak_loop = [2, 3, 4]  # loop through these numbers of reflection peaks
+n_junc_loop = [1]
+n_peak_loop = [2]
 
 color_names, color_XYZ = load_colorchecker(illuminant="AM1.5g", output_coords="XYZ")
 # load the names and XYZ coordinates of the 24 default Babel colors

@@ -6,6 +6,10 @@ from solcore.light_source import LightSource
 from ecopv.spectrum_functions import gen_spectrum_ndip, load_cmf, spec_to_XYZ
 from ecopv.plot_utilities import *
 
+from matplotlib import rc
+
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
+
 current_path = pathlib.Path(__file__).parent.resolve()
 
 color_names = np.array(
@@ -37,7 +41,7 @@ color_names = np.array(
     ]
 )
 
-ind = np.where(color_names == "Orange")[0][0]
+ind = np.where(color_names == "Magenta")[0][0]
 
 color_R = np.loadtxt(join(dirname(current_path), "ecopv", "data",
                           "ColorChecker_R_BabelColor.csv"), delimiter=',',
@@ -85,7 +89,7 @@ cmf = load_cmf(wl_cell)
 wl_colors = np.arange(380, 780.1, 0.5)
 RGBA = wavelength_to_rgb(wl_colors)
 
-fig, (ax, ax2) = plt.subplots(2,1, figsize=(5, 5.5),
+fig, (ax, ax2) = plt.subplots(2,1, figsize=(5, 5),
                               gridspec_kw={
                                   "height_ratios": [2, 1.2],
                                   "hspace": 0.2,
@@ -97,21 +101,25 @@ ax.plot(color_R[0], color_R[ind+1], '--', color=color_list[ind], label=r"$R_{rea
 ax.set_xlim(min(color_R[0]), max(color_R[0]))
 ax2.set_xlim(min(color_R[0]), max(color_R[0]))
 ax.plot(wl_cell, R_optim, '-', color=color_list[ind], label=r"$R_{ideal}$")
-ax.plot(wl_cell, cmf[:,0], '-.', color='r', alpha=0.7, label=r"$\bar{x}$")
-ax.plot(wl_cell, cmf[:,1], '-.', color='g', alpha=0.7, label=r"$\bar{y}$")
-ax.plot(wl_cell, cmf[:,2], '-.', color='b', alpha=0.7, label=r"$\bar{z}$")
-# ax.plot(0, 0, '-k', label="AM1.5g")
-# ax.plot(0, 0, '-', color=color_list[ind], label=r"$R_{ideal}$")
-# ax.plot(0, 0, '--', color=color_list[ind], label=r"$R_{real}$")
+
 ax.grid()
+
+plt.tight_layout()
+
 ax2.grid()
 ax2.set_xlabel("Wavelength (nm)")
-ax.set_ylabel("Spectral sensitivity / Reflectance")
+ax.set_ylabel("Reflectance")
+
 ax2.set_ylabel(r"SPD ($\times 10^{18}$ W m$^{-2}$ nm$^{-1}$)")
 ax2.set_ylim(0, 5)
-ax.set_ylim(0, 1.85)
+ax.set_ylim(0, 1.01)
 ax.legend(loc="upper right")
-# ax2.set_yticks([0, 0.25, 0.5, 0.75, 1])
+
+ax.set_yticks([0, 0.25, 0.5, 0.75, 1])
+
+ax.spines['left'].set_color(color_list[ind])
+ax.yaxis.label.set_color(color_list[ind])
+ax.tick_params(axis='y', colors=color_list[ind])
 ax.xaxis.set_ticklabels([])
 
 ax2.plot(wl_colors, light_source.spectrum(wl_colors)[1]/1e18, '-k',
@@ -128,6 +136,20 @@ for i1 in range(len(RGBA)):
         )
     )
 plt.tight_layout()
+
+ax_cmf = ax.twinx()
+
+ax_cmf.set_ylim(0, 2.02)
+ax_cmf.plot(wl_cell, cmf[:,0], '-.', color='r', alpha=0.7, label=r"$\bar{x}$")
+ax_cmf.plot(wl_cell, cmf[:,1], '-.', color='g', alpha=0.7, label=r"$\bar{y}$")
+ax_cmf.plot(wl_cell, cmf[:,2], '-.', color='b', alpha=0.7, label=r"$\bar{z}$")
+
+# ax.plot(0, 0, '-k', label="AM1.5g")
+# ax.plot(0, 0, '-', color=color_list[ind], label=r"$R_{ideal}$")
+# ax.plot(0, 0, '--', color=color_list[ind], label=r"$R_{real}$")
+ax_cmf.set_ylabel("Spectral sensitivity")
+ax_cmf.set_yticks([0, 1, 2])
+
 plt.show()
 
 

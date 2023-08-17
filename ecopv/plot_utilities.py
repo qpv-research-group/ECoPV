@@ -38,6 +38,8 @@ color_XYZ_bw = xr.DataArray(
 )
 color_XYZ_xr = xr.concat([color_XYZ_xr, color_XYZ_bw], dim="color")
 
+Y_cols = color_XYZ_xr.data[:,1]
+
 
 def wavelength_to_rgb(wavelengths, gamma=0.8):
     """
@@ -103,7 +105,7 @@ def wavelength_to_rgb(wavelengths, gamma=0.8):
     return RGBA
 
 
-def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr,
+def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr.data,
                        color_coords="XYZ"):
     # width is with an axis spacing of "1" for the x-axis colour labels
 
@@ -114,16 +116,23 @@ def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr,
 
     h_p = width * w / len(labels)
     h_ax = h_p * (ymax - ymin) / h
-    print("h", h_ax)
+
+    if 'Black' in labels:
+        color_XYZ = np.insert(color_XYZ, np.where(labels == 'Black')[0][0], [0, 0, 0],
+                              axis=0)
+
+    print(color_XYZ)
 
     for l1, lab in enumerate(labels):
 
-        if lab != "Black":
+        # if lab != "Black":
 
-            target = color_XYZ[l1]
+        target = color_XYZ[l1]
 
-        else:
-            target = [0, 0, 0]
+        print(l1, color_XYZ.shape)
+
+        # else:
+        #     target = [0, 0, 0]
 
         if color_coords == "XYZ":
 
@@ -175,23 +184,22 @@ def apply_formatting(ax, color_labels=None, grid="both", n_colors=None):
     ax.set_axisbelow(True)
 
 
-def make_sorted_xr(
-    arr,
-    color_names,
-    append_black=None,
-    Y_cols=default_Y_cols,
-    col_names_sorted=col_names_default,
-):
+def make_sorted_xr(arr, color_names, append_black=None,
+                   ascending=False,
+                   Y_cols=default_Y_cols):
     if arr.ndim == 1:
         dims = ["color"]
 
     else:
         dims = ["color", "n"]
 
+
     eff_xr_col = xr.DataArray(data=arr[:18], dims=dims, coords={"color": Y_cols})
 
-    eff_xr_col = eff_xr_col.sortby("color", ascending=False)
-    eff_xr_col = eff_xr_col.assign_coords(color=col_names_sorted.data)
+    ordered = Y_cols.argsort()
+    eff_xr_col = eff_xr_col.sortby("color", ascending=ascending)
+    print(color_names[:18][ordered])
+    eff_xr_col = eff_xr_col.assign_coords(color=color_names[:18][ordered])
 
     if append_black is not None:
         eff_xr_bw = xr.DataArray(
@@ -205,16 +213,31 @@ def make_sorted_xr(
             data=arr[18:], dims=dims, coords={"color": color_names[18:]}
         )
 
+    if ascending:
+        eff_xr_bw.data = eff_xr_bw.data[::-1]
+        eff_xr_bw.coords["color"] = eff_xr_bw.coords["color"][::-1]
+
     eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim="color")
 
     return eff_xr
 
 
-def sRGB_color_list(order="sorted"):
+def sRGB_color_list(order="sorted", include_black=False):
 
     _, XYZ_list = load_colorchecker(source="BabelColor",
                                                 illuminant="AM1.5g",
                             output_coords="XYZ")
+
+    XYZ_list_colors = XYZ_list[:18]
+    XYZ_list_greys = XYZ_list[18:]
+
+    if include_black:
+        XYZ_list_greys = np.insert(XYZ_list_greys, 0, [0,0,0], axis=0)
+
+    if order == "sorted":
+        XYZ_list_colors_sorted = XYZ_list_colors[np.argsort(XYZ_list_colors[:, 1])]
+        XYZ_list_greys_sorted = XYZ_list_greys[np.argsort(XYZ_list_greys[:,1])]
+        XYZ_list = np.concatenate((XYZ_list_colors_sorted, XYZ_list_greys_sorted))
 
     rgb = np.zeros((len(XYZ_list), 3))
 
@@ -228,8 +251,8 @@ def sRGB_color_list(order="sorted"):
             color_srgb_t.clamped_rgb_b,
         ]
 
-    if order == "sorted":
-        return rgb[np.argsort(color_XYZ[:, 1])]
+    # if order == "sorted":
+    #     return rgb[np.argsort(color_XYZ[:, 1])]
 
-    else:
-        return rgb
+    # else:
+    return rgb

@@ -1,18 +1,12 @@
 from ecopv.main_optimization import (
-    load_colorchecker,
     multiple_color_cells,
-    cell_optimization,
 )
-from ecopv.optimization_functions import getIVtandem
-import numpy as np
-from colormath.color_conversions import convert_color
-from colormath.color_objects import xyYColor, XYZColor
+from colormath.color_objects import sRGBColor, xyYColor
 from solcore.light_source import LightSource
-import matplotlib.pyplot as plt
-import pygmo as pg
 from os import path
 from cycler import cycler
 from ecopv.plot_utilities import *
+from matplotlib.patches import Rectangle
 
 force_rerun = False
 calc = True
@@ -23,7 +17,7 @@ col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color
 acceptable_eff_change = 1e-4  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
 # col_thresh and efficiency change is less than this.
 
-n_trials = 10  # number of islands which will run concurrently in parallel
+n_trials = 6  # number of islands which will run concurrently in parallel
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(
     300, 4000, interval
@@ -51,14 +45,15 @@ max_height = (
 )
 base = 0  # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
-# n_junc_loop = [5, 6]
+n_junc_loop = [1, 2, 3, 4, 5]  # loop through these numbers of junctions
+
+inds = [10, 12, 14, 18]
 
 color_names, color_xyY = load_colorchecker(
     output_coords="xyY", illuminant="AM1.5g"
 )  # load the names and XYZ coordinates of the 24 default Babel colors
-color_names_pre = color_names[[12, 13, 14, 18]]
-color_xyY = color_xyY[[12, 13, 14, 18]]
+color_names_pre = color_names[inds]
+color_xyY = color_xyY[inds]
 
 Y_values = np.linspace(0.02, 0.91, 20)  # loop through these Y values (luminance)
 color_suff = [str(np.round(x, 2)) for x in Y_values]
@@ -148,7 +143,7 @@ if __name__ == "__main__":
                     + "_spd.txt"
                 )
 
-                if not path.exists(save_loc):
+                if not path.exists(save_loc) or force_rerun:
 
                     xyY_coords = color_xyY[poss_colors]
                     color_xyY[:, 2] = Y
@@ -276,7 +271,7 @@ if __name__ == "__main__":
                         + str(base)
                         + "_spd.txt")
 
-                    champion_pops = np.loadtxt(                       "results/champion_pop_Y_"
+                    champion_pops = np.loadtxt("results/champion_pop_Y_"
                         + color_suff[j1]
                         + "_"
                         + R_type
@@ -316,24 +311,58 @@ if __name__ == "__main__":
 
     Y_plot = np.insert(Y_values, 0, 0)
 
-    pal = ["blue", "green", "red", "gray"] # use actual colours!
+    color_labels = ["YellowGreen", "Blue", "Red", "Greyscale"]
+
+    shapes = ["o", "+", "^", "*", "v", "."]
+    linestyle = ["-", "--", "-.", ":", "-", "--"]
+
+    color_sRGB_array = np.zeros((len(Y_values), len(color_xyY), 3))
+
+    for j1, Y in enumerate(Y_values):
+        xyY_coords = color_xyY
+        color_xyY[:, 2] = Y
+        color_sRGB_array[j1] = np.array(
+            [convert_color(xyYColor(*x), sRGBColor).get_value_tuple() for x in color_xyY])
+
+    color_sRGB_array[color_sRGB_array > 1] = 1
+    pal = color_sRGB_array[int(len(color_sRGB_array)/2)] # use actual colours!
     cols = cycler("color", pal)
     params = {"axes.prop_cycle": cols}
     plt.rcParams.update(params)
 
-    color_labels = ["Blue", "Green", "Red", "Grey"]
+    fig, (ax1, ax4, ax2, ax3) = plt.subplots(4, 1,
+                                        gridspec_kw={"height_ratios": [1, 0.1, 1, 0.2],
+                                                   "wspace": 0, "hspace": 0.4,
+                                                },
+                                        figsize=(5.5, 10.5))
 
-    shapes = ["o", "+", "^", "*", "v", "."]
-    linestyle = ["-", "--", "-.", ":", "-", "--"]
-    fig, ax = plt.subplots()
+    deltaY = np.diff(Y_values)[0]
+
+    for j1, Y in enumerate(Y_values):
+        for j2 in range(len(color_xyY)):
+            print(j1, j2)
+            ax3.add_patch(
+                Rectangle(
+                    xy=(Y - 0.2*deltaY, j2),
+                    width=0.8*deltaY,
+                    height=0.8,
+                    facecolor=color_sRGB_array[j1, j2],
+                )
+            )
+    ax3.set_yticks([0.5, 1.5, 2.5, 3.5])
+    ax3.set_yticklabels(['YellowGreen', 'Blue', 'Red', 'Greyscale'])
+    ax3.set_ylim(0, 4)
+    # ax3.set_xlim(0, len(Y_values))
+
+
     for i1, n_junc in enumerate(n_junc_loop):
         plot_data = np.insert(champion_effs_array[i1], 0, black_cell_eff[i1], axis=0)
 
-        ax.plot(
+        ax1.plot(
             Y_plot, plot_data, linestyle=linestyle[i1], marker=shapes[i1], mfc="none"
         )
 
-        ax.plot(
+        ax4.plot(
             0,
             1,
             "k",
@@ -343,32 +372,34 @@ if __name__ == "__main__":
             label=str(n_junc),
         )
 
-    ax1 = ax.twinx()
+    ax4_b = ax4.twinx()
     for j1 in range(len(color_xyY)):
-        ax1.plot(-100, -100, "-o", mfc="none", color=pal[j1], label=color_labels[j1])
+        ax4_b.plot(0, 1, "-o", mfc="none", color=pal[j1], label=color_labels[j1])
 
-    ax1.set_ylim(1, 1.1)
-    ax1.get_yaxis().set_visible(False)
-    ax.grid(axis="both", color="0.8")
-    ax.set_xlabel("Luminance (Y)")
-    ax.set_ylabel("Efficiency (%)")
-    ax.set_xlim(-0.03, 1)
-    ax.set_ylim(23, 65)
-    ax.legend(title="Junctions:", bbox_to_anchor=(1.22, 0.8), frameon=False)
+
+    ax1.grid(axis="both", color="0.8")
+    # ax1.set_xlabel("Luminance (Y)")
+    ax1.set_ylabel("Efficiency (%)")
+    ax1.set_xlim(-0.03, 1)
+    ax1.set_ylim(23, 58)
+
+    ax4.legend(title="Junctions:", bbox_to_anchor=(-.05, -1.7), loc=(0, 0), ncol=3)#, frameon=False)
+    ax4.set_xlim(-2, -1)
+
+    ax4_b.legend(title="Colour:", bbox_to_anchor=(0.45, -1.7), loc=(0, 0), ncol=2)#, frameon=False)
+    ax4.axis('off')
+    ax4_b.axis('off')
+
     plt.tight_layout()
-    ax1.legend(title="Colour:", bbox_to_anchor=(1.25, 0.4), frameon=False)
-    plt.tight_layout()
-    fig.savefig("fig5.pdf", bbox_inches="tight")
-    plt.show()
+    # fig.savefig("fig5.pdf", bbox_inches="tight")
+    # plt.show()
 
-    # Red, green, blue and greys: single junction has less power loss than higher number of junctions. Why?
-
-    fig, ax = plt.subplots()
+    # fig, ax = plt.subplots()
     for i1, n_junc in enumerate(n_junc_loop):
         plot_data = np.insert(
             champion_effs_array[n_junc - 1], 0, black_cell_eff[n_junc - 1], axis=0
         )
-        ax.plot(
+        ax2.plot(
             Y_plot,
             plot_data / np.nanmax(plot_data),
             linestyle=linestyle[i1],
@@ -376,70 +407,9 @@ if __name__ == "__main__":
             mfc="none",
         )
 
-        ax.plot(
-            0,
-            2,
-            "k",
-            linestyle=linestyle[i1],
-            marker=shapes[i1],
-            mfc="none",
-            label=str(n_junc),
-        )
-
-    ax1 = ax.twinx()
-    for j1 in range(len(color_xyY)):
-        ax1.plot(-100, -100, "-o", mfc="none", color=pal[j1], label=color_labels[j1])
-
-    ax1.set_ylim(1, 1.1)
-    ax1.get_yaxis().set_visible(False)
-    ax.grid(axis="both", color="0.8")
-    ax.set_xlabel("Luminance (Y)")
-    ax.set_ylabel("Normalized efficiency")
-    ax.set_xlim(-0.03, 1)
-    ax.set_ylim(0.64, 1.02)
-
-    ax.legend(title="Junctions:", bbox_to_anchor=(1.22, 0.8), frameon=False)
-    plt.tight_layout()
-    ax1.legend(title="Colour:", bbox_to_anchor=(1.25, 0.4), frameon=False)
-    plt.tight_layout()
-
-    plt.show()
-    #
-    # fig, axes = plt.subplots(2)
-    # for i1, n_junc in enumerate(n_junc_loop):
-    #     pops = champion_pops_array[i1].flatten()
-    #     IVs = np.zeros((len(pops), 2))
-    #     n_params = len(pops[0])
-    #     for l1 in range(len(pops)):
-    #         if pops[l1] is None:
-    #             pops[l1] = np.full((n_params), np.nan)
-    #             IVs[l1] = np.nan
-    #
-    #         else:
-    #             IVs[l1] = getIVtandem(
-    #                 pops[l1][-n_junc:][::-1],
-    #                 photon_flux_cell[1],
-    #                 photon_flux_cell[0],
-    #                 interval,
-    #                 x=pops[l1],
-    #                 n_peaks=2,
-    #                 method="perfect_R",
-    #             )
-    #
-    #     pops = np.vstack(pops)
-    #     pops = np.reshape(pops, (20, 4, n_params))
-    #     IVs = np.reshape(IVs, (20, 4, 2))
-    #     axes[0].plot(
-    #         Y_values,
-    #         IVs[:, :, 1],
-    #         linestyle=linestyle[i1],
-    #         marker=shapes[i1],
-    #         mfc="none",
-    #     )
-    #
-    #     axes[0].plot(
+    #     ax.plot(
     #         0,
-    #         1,
+    #         2,
     #         "k",
     #         linestyle=linestyle[i1],
     #         marker=shapes[i1],
@@ -447,32 +417,26 @@ if __name__ == "__main__":
     #         label=str(n_junc),
     #     )
     #
-    #     axes[1].plot(
-    #         Y_values,
-    #         IVs[:, :, 0],
-    #         linestyle=linestyle[i1],
-    #         marker=shapes[i1],
-    #         mfc="none",
-    #     )
-    #
+    # ax1 = ax.twinx()
     # for j1 in range(len(color_xyY)):
-    #     axes[1].plot(
-    #         -100, -100, "-o", mfc="none", color=pal[j1], label=color_labels[j1]
-    #     )
-    #
-    # axes[0].grid(axis="both", color="0.8")
-    # axes[1].grid(axis="both", color="0.8")
-    # axes[0].set_xlabel("Jsc")
-    # axes[1].set_ylabel("Voc")
-    # axes[0].set_xlim(-0.03, 1)
-    # axes[1].set_xlim(-0.03, 1)
-    # axes[0].set_ylim(50, 450)
-    # axes[1].set_ylim(0.5, 4)
-    #
-    # # ax.set_ylim(0.5, 1)
-    # axes[0].legend(title="Junctions:", bbox_to_anchor=(1.22, 0.8), frameon=False)
+    #     ax1.plot(-100, -100, "-o", mfc="none", color=pal[j1], label=color_labels[j1])
+
+    # ax1.set_ylim(1, 1.1)
+    # ax1.get_yaxis().set_visible(False)
+    ax1.set_xlabel("Luminance (Y)")
+    ax2.grid(axis="both", color="0.8")
+    ax2.set_xlabel("Luminance (Y)")
+    ax2.set_ylabel("Normalized efficiency")
+    ax2.set_xlim(-0.03, 1)
+    ax2.set_ylim(0.64, 1.02)
+
+    # ax2.legend(title="Junctions:", bbox_to_anchor=(1.22, 0.8), frameon=False)
     # plt.tight_layout()
-    # axes[1].legend(title="Colour:", bbox_to_anchor=(1.25, 0.4), frameon=False)
-    # plt.tight_layout()
-    #
-    # plt.show()
+    # ax1.legend(title="Colour:", bbox_to_anchor=(1.25, 0.4), frameon=False)
+
+    ax3.axis("off")
+    plt.tight_layout()
+
+
+    plt.show()
+

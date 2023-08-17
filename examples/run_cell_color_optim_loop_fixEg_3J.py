@@ -16,8 +16,7 @@ import seaborn as sns
 
 from matplotlib import rc
 rc("font", **{"family": "sans-serif",
-              "sans-serif": ["Helvetica"],
-              "size": 13})
+              "sans-serif": ["Helvetica"]})
 
 
 
@@ -394,14 +393,16 @@ if __name__ == "__main__":
                 upperE=1240/min(wl_cell), method="no_R") / 10
     )
 
-    eff_xr = make_sorted_xr(max_effs[0], color_names, black_cell_eff)
 
-    pop_xr = make_sorted_xr(champion_pops, color_names)
+    eff_xr = make_sorted_xr(max_effs[0], color_names, append_black=black_cell_eff,
+                            ascending=True)
+    pop_xr = make_sorted_xr(champion_pops, color_names,
+                            append_black=[0, 0, 0, 0], ascending=True)
 
     pal = sns.color_palette("husl", 3)
 
     fig, (ax, ax2) = plt.subplots(2, 1,
-                           figsize=(6, 5.5),
+                           figsize=(5, 5),
                            gridspec_kw={'height_ratios': [1, 1.65]},
                            )
 
@@ -411,13 +412,22 @@ if __name__ == "__main__":
     J2_c = np.zeros(len(color_XYZ) + 1)
     J3_c = np.zeros(len(color_XYZ) + 1)
 
-    for k1 in range(len(color_XYZ)):
+    for k1 in range(len(pop_xr)):
         spec = gen_spectrum_ndip(pop_xr[k1].data, n_peaks=2, wl=wl_cell)
-        _, Is = getIVmax(
-            fixed_bandgaps, (1 - spec) * photon_flux_cell[1], wl_cell, interval,
-            upperE=1240/min(wl_cell), method="perfect_R", n_peaks=2,
-            x=pop_xr[k1].data,
-        )
+
+        if pop_xr[k1].data[0] != 0:
+            _, Is = getIVmax(
+                fixed_bandgaps, (1 - spec) * photon_flux_cell[1], wl_cell, interval,
+                upperE=1240/min(wl_cell), method="perfect_R", n_peaks=2,
+                x=pop_xr[k1].data,
+            )
+
+        else:
+            _, Is = getIVmax(
+                fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
+                upperE=1240/min(wl_cell), method="no_R",
+            )
+
         J1_c[k1] = Is[0]
         J2_c[k1] = Is[1]
         J3_c[k1] = Is[2]
@@ -426,9 +436,6 @@ if __name__ == "__main__":
                      upperE=1240 / min(wl_cell), method="perfect_R", n_peaks=2,
                      x=pop_xr[k1].data,
                      )
-    J1_c[-1] = Is[0]
-    J2_c[-1] = Is[1]
-    J3_c[-1] = Is[2]
 
     ax2.plot(
         eff_xr.color,
@@ -509,7 +516,9 @@ if __name__ == "__main__":
     ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
     # ax2.tick_params(direction="in", which="both", top=True, right=True, colors=pal[0])
     # ax2.spines["right"].set_color(pal[0])  # setting up Y-axis tick color to red
-    add_colour_patches(ax2, 0.75, eff_xr.color.data)
+    rgb_colors = sRGB_color_list(order="sorted", include_black=True)
+    add_colour_patches(ax2, 0.75, eff_xr.color.data, rgb_colors,
+                       color_coords='rgb')
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.1)
     plt.show()

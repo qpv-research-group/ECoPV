@@ -191,6 +191,7 @@ def multiple_color_cells(
     photon_flux: np.ndarray,
     n_peaks: int = 2,
     n_junctions: int = 1,
+    pop_size: int = None,
     R_type: str = "sharp",
     fixed_height: bool = True,
     n_trials: int = 10,
@@ -211,6 +212,7 @@ def multiple_color_cells(
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
     illuminant: str = "AM1.5g",
+    **kwargs,
 ) -> dict:
 
     """Optimize color and efficiency of multiple colored cells using pygmo2's moaed (multi-objective differential evolution)
@@ -222,6 +224,7 @@ def multiple_color_cells(
                         being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
     :param n_peaks: number of peaks in the spectrum
     :param n_junctions: number of junctions in the cell
+    :param pop_size: population size for each island (thread) in the optimization
     :param R_type: type of spectrum, "sharp" or "gauss" currently implemented
     :param fixed_height: whether to fix the height of the reflection peaks to max_height (True) or allow it to vary (False)
     :param n_trials: number of islands (separate threads) which will run concurrently
@@ -264,7 +267,7 @@ def multiple_color_cells(
         n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
-    pop_size = n_params * 10
+    pop_size = 10*n_params if pop_size is None else pop_size
 
     # cmf = load_cmf(photon_flux[0])
     interval = np.diff(photon_flux[0])[0]
@@ -383,6 +386,7 @@ def multiple_color_cells(
                 fixed_bandgaps=fixed_bandgaps,
                 j01_method=j01_method,
                 seed_pop=seed_population[k1],
+                **kwargs,
             )
 
             archipelagos[k1] = archi
@@ -768,6 +772,12 @@ class color_function_mobj:
 
         self.illuminant = illuminant
 
+        if 'rad_eff' in kwargs.keys():
+            self.rad_eff = kwargs.pop('rad_eff')
+
+        else:
+            self.rad_eff = [1]*n_juncs
+
         if fixed_bandgaps is not None:
             self.fixed_bandgaps = fixed_bandgaps
 
@@ -794,6 +804,7 @@ class color_function_mobj:
                       x, upperE=self.upperE,
                       method=self.j01_method,
                       n_peaks=self.n_peaks,
+                      rad_eff=self.rad_eff,
                       ) / self.incident_power
 
 
