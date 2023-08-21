@@ -129,6 +129,8 @@ def db_cell_calculation_perfectR(
     #     [1240/(x[0]-x[2]/2), upperE] # below the lower band
     # ])
 
+    x = reorder_peaks(x, n_peaks, len(egs))
+
     limits = [[0, 1240/(x[n_peaks-1]+x[2*n_peaks-1]/2)]]
 
     if n_peaks > 1:
