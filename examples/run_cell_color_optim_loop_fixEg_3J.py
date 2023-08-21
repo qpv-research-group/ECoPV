@@ -419,13 +419,14 @@ if __name__ == "__main__":
             _, Is = getIVmax(
                 fixed_bandgaps, (1 - spec) * photon_flux_cell[1], wl_cell, interval,
                 upperE=1240/min(wl_cell), method="perfect_R", n_peaks=2,
-                x=pop_xr[k1].data,
+                x=pop_xr[k1].data, rad_eff=[1]*3
             )
 
         else:
             _, Is = getIVmax(
                 fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
                 upperE=1240/min(wl_cell), method="no_R",
+                rad_eff=[1]*3
             )
 
         J1_c[k1] = Is[0]
@@ -435,6 +436,7 @@ if __name__ == "__main__":
     _, Is = getIVmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
                      upperE=1240 / min(wl_cell), method="perfect_R", n_peaks=2,
                      x=pop_xr[k1].data,
+                     rad_eff=[1]*3,
                      )
 
     ax2.plot(

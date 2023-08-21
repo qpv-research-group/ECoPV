@@ -3,6 +3,7 @@ from ecopv.main_optimization import (
     multiple_color_cells,
     cell_optimization,
 )
+from ecopv.spectrum_functions import gen_spectrum_ndip
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ import pygmo as pg
 from os import path
 import pandas as pd
 
-force_rerun = True
+force_rerun = False
 force_rerun_ideal = False
 include_minimum_effs = False
 include_seed_population = False

@@ -121,15 +121,11 @@ def add_colour_patches(ax, width, labels, color_XYZ=color_XYZ_xr.data,
         color_XYZ = np.insert(color_XYZ, np.where(labels == 'Black')[0][0], [0, 0, 0],
                               axis=0)
 
-    print(color_XYZ)
-
     for l1, lab in enumerate(labels):
 
         # if lab != "Black":
 
         target = color_XYZ[l1]
-
-        print(l1, color_XYZ.shape)
 
         # else:
         #     target = [0, 0, 0]
@@ -168,8 +164,6 @@ def apply_formatting(ax, color_labels=None, grid="both", n_colors=None):
 
     ax.xaxis.set_ticks(np.arange(0, n_colors))
     ax.tick_params(direction="in", which="both", top=True, right=True)
-    print(color_labels)
-
     if color_labels is not None:
         ax.set_xticklabels(
             color_labels, rotation=45, ha="right", rotation_mode="anchor"
@@ -198,7 +192,6 @@ def make_sorted_xr(arr, color_names, append_black=None,
 
     ordered = Y_cols.argsort()
     eff_xr_col = eff_xr_col.sortby("color", ascending=ascending)
-    print(color_names[:18][ordered])
     eff_xr_col = eff_xr_col.assign_coords(color=color_names[:18][ordered])
 
     if append_black is not None:

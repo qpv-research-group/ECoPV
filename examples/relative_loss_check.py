@@ -1,4 +1,4 @@
-from ecopv.optimization_functions import getIVmax, getPmax
+from ecopv.optimization_functions import getIVmax, getPmax, db_cell_calculation_perfectR
 from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip, load_cmf
 
 import numpy as np
@@ -6,7 +6,11 @@ from solcore.light_source import LightSource
 import seaborn as sns
 import pandas as pd
 from cycler import cycler
+from solcore.constants import kb, q
 
+k = kb / q
+T = 298
+kbT = k * T
 
 from ecopv.plot_utilities import *
 
@@ -68,7 +72,7 @@ base = 0  # baseline fixed reflection
 patch_width = 0.75
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]
-n_junc_loop = [5, 6]
+
 # also run for 1 junc/1 peak but no more junctions.
 
 color_names, color_XYZ = load_colorchecker()  # 24 default Babel colors
@@ -113,7 +117,7 @@ n_peak_loop = [2,3,4]
 loop_n = 0
 
 cols = sns.color_palette("Set2", n_colors=len(n_junc_loop))
-cols = ["r", "g", "k"]
+cols = ["k", "r", "g"]
 
 black_cell_eff = np.array([33.79, 45.85, 51.76, 55.49, 57.82, 59.71])
 black_cell_Eg = [
@@ -179,45 +183,9 @@ for j1, n_junctions in enumerate(n_junc_loop):
             eff_xr = make_sorted_xr(champion_effs, color_names, append_black,
                                     ascending=True)
 
-            if i1 == len(n_peak_loop) - 1:
-                ax1.plot(
-                    eff_xr.color.data,
-                    eff_xr.data,
-                    mfc="none",
-                    linestyle="none",
-                    color=cols[i1],
-                    marker=shapes[j1],
-                    # label=fixed_height,
-                    # label=n_junctions,
-                    alpha=alphas[k1],
-                    markersize=4,
-                )
-
-            else:
-                ax1.plot(
-                    eff_xr.color.data,
-                    eff_xr.data,
-                    mfc="none",
-                    linestyle="none",
-                    color=cols[i1],
-                    marker=shapes[j1],
-                    alpha=alphas[k1],
-                    markersize=4,
-                )
-
-            if n_peaks == 2:
-                two_peak_ref = eff_xr.data
-
-            eff_diff = (
-                100
-                * (eff_xr - two_peak_ref)
-                / two_peak_ref
-            ) # this is NEGATIVE if two_peak if higher, POSITIVE if two_peak is lower
-
-
-            ax2.plot(
-                eff_diff.color.data,
-                eff_diff.data,
+            ax1.plot(
+                eff_xr.color.data,
+                eff_xr.data,
                 mfc="none",
                 linestyle="none",
                 color=cols[i1],
@@ -226,13 +194,36 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 markersize=4,
             )
 
+
+            if n_peaks == 2:
+                two_peak_ref = eff_xr.data
+                two_peak_pop = champion_pops
+
+            else:
+                eff_diff = (
+                    100
+                    * (eff_xr - two_peak_ref)
+                    / two_peak_ref
+                ) # this is NEGATIVE if two_peak if higher, POSITIVE if two_peak is lower
+
+                ax2.plot(
+                    eff_diff.color.data,
+                    eff_diff.data,
+                    mfc="none",
+                    linestyle="none",
+                    color=cols[i1],
+                    marker=shapes[j1],
+                    alpha=alphas[k1],
+                    markersize=4,
+                )
+
             # plt.legend(title="Fixed h:")
 
 apply_formatting(ax1, n_colors=len(eff_diff.color.data))
 apply_formatting(ax2, eff_diff.color.data)
 
 for i1, n_junctions in enumerate(n_junc_loop):
-    ax_l.plot(0, 0, marker=shapes[i1+1], color='k', linestyle='none', label=n_junctions, mfc='none')
+    ax_l.plot(0, 0, marker=shapes[i1], color='k', linestyle='none', label=n_junctions, mfc='none')
 
 ax_l.set_xlim(10, 20)
 ax_l.legend(title="Junctions:", ncol=3, loc="center left")
@@ -290,7 +281,7 @@ fixed_height_loop = [True]
 max_height = 1
 base = 0
 
-n_junc_loop = [5]
+n_junc_loop = [6]
 n_peak_loop = [2, 3, 4]
 
 patch_width = 0.9
@@ -442,3 +433,128 @@ add_colour_patches(axes[1, 0], patch_width, eff_xr.color.data, color_XYZ_xr)
 plt.tight_layout()
 fig.savefig("fig4.pdf", bbox_inches="tight")
 plt.show()
+
+n_diff = 0
+# check without sorting
+n_junc_loop = [6]
+n_peak_loop = [2, 3, 4]
+
+for j1, n_junctions in enumerate(n_junc_loop):
+    for i1, n_peaks in enumerate(n_peak_loop):
+        placeholder_obj = make_spectrum_ndip(
+            n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
+        )
+
+        champion_effs = np.loadtxt(
+            "results/champion_eff_"
+            + R_type
+            + str(n_peaks)
+            + "_"
+            + str(n_junctions)
+            + "_"
+            + str(fixed_height)
+            + str(max_height)
+            + "_"
+            + str(base) + "_"  + j01_method + light_source_name
+            + ".txt"
+        )
+        champion_pops = np.loadtxt(
+            "results/champion_pop_"
+            + R_type
+            + str(n_peaks)
+            + "_"
+            + str(n_junctions)
+            + "_"
+            + str(fixed_height)
+            + str(max_height)
+            + "_"
+            + str(base) + "_"  + j01_method + light_source_name
+            + ".txt"
+        )
+
+        if n_peaks == 2:
+
+            two_peak_eff = champion_effs
+            two_peak_pop = champion_pops
+
+        else:
+
+            diff = champion_effs - two_peak_eff
+
+            for i2, di in enumerate(diff):
+
+                if di > 0.1:
+                    n_diff += 1
+
+                    two_peak_spec = gen_spectrum_ndip(two_peak_pop[i2], 2, wl_cell,
+                                                      )
+                    n_peak_spec = gen_spectrum_ndip(champion_pops[i2], n_peaks, wl_cell)
+
+
+                    plt.figure()
+                    plt.plot(wl_cell, two_peak_spec, '--k')
+                    plt.plot(wl_cell, n_peak_spec, '-r')
+                    plt.plot(wl_cell, photon_flux_cell[1]/np.max(photon_flux_cell), 'y', alpha=0.5)
+
+                    for i3 in range(n_junctions):
+                        plt.axvline(1240/two_peak_pop[i2][-i3], color='r', alpha=0.6, linestyle='--')
+                        plt.axvline(1240/champion_pops[i2][-i3], color='k', alpha=0.6)
+
+                    plt.title(str(diff.data[i2]) + color_names[i2] + str(n_junctions) + str(n_peaks))
+
+                    plt.xlim(300, 900)
+                    plt.show()
+
+                    egs = champion_pops[i2][-n_junctions:][::-1]
+                    egs2 = two_peak_pop[i2][-n_junctions:][::-1]
+
+                    j01s, jscs, Vmaxs, Imaxs = db_cell_calculation_perfectR(egs,
+                                                                            (1-n_peak_spec)*photon_flux_cell[1],
+                                                                            wl_cell, interval,
+                                                                            x=champion_pops[i2][:-n_junctions],
+                                                                            n_peaks=n_peaks,
+                                                                            rad_eff=[1]*n_junctions)
+
+                    j01s2, jscs2, Vmaxs2, Imaxs2 = db_cell_calculation_perfectR(egs2,
+                                                                                (1-two_peak_spec)*photon_flux_cell[1],
+                                                                            wl_cell, interval,
+                                                                            x=two_peak_pop[i2][:-n_junctions],
+                                                                            n_peaks=2,
+                                                                            rad_eff=[1]*n_junctions)
+
+                    P1 = getPmax(egs, (1-n_peak_spec)*photon_flux_cell[1],
+                                                                            wl_cell, interval,
+                                                                            x=champion_pops[i2][:-n_junctions],
+                                                                            n_peaks=n_peaks,
+                                                                            rad_eff=[1]*n_junctions,
+                                 method='perfect_R')
+
+                    P2 = getPmax(egs2, (1-two_peak_spec)*photon_flux_cell[1],
+                                                                            wl_cell, interval,
+                                                                            x=two_peak_pop[i2][:-n_junctions],
+                                                                            n_peaks=2,
+                                                                            rad_eff=[1]*n_junctions,
+                                 method='perfect_R')
+
+                    vTandem = np.sum(kbT * np.log((jscs - np.min(Imaxs)) / j01s))
+                    vTandem2 = np.sum(kbT * np.log((jscs2 - np.min(Imaxs2)) / j01s2))
+                    # print('j01', Imaxs, Imaxs2)
+                    print(color_names[i2])
+                    print('Imax Npeaks/2 peaks', np.min(Imaxs), np.min(Imaxs2))
+                    print('V Npeaks/2 peaks', vTandem, vTandem2)
+                    print('current spread Npeaks/2 peaks', np.std(Imaxs), np.std(Imaxs2))
+
+                    print('n_photons N peaks/2 peaks', np.sum((1-n_peak_spec)*photon_flux_cell[1])/1e22,
+                          np.sum((1-two_peak_spec)*photon_flux_cell[1])/1e22)
+                    print(Imaxs, Imaxs2)
+                    print('\n')
+
+
+# 4 peaks, 5 junctions DarkSkin has large discrepancy, but why?
+# 4 peak spectrum reflects (slightly) MORE photons!
+# two peaks has higher Vmaxs
+# two peaks has lower Imaxs (including minImax)
+# two peaks has lower j01s
+
+# In most of the cases, the 2 peak spectrum makes the colour using fewer photons.
+# In most of the cases, the N peak spectrum has a higher Imax
