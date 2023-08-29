@@ -51,7 +51,7 @@ base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
-n_peak_loop = [2]  # loop through these numbers of reflection peaks
+n_peak_loop = [3]  # loop through these numbers of reflection peaks
 
 color_names, color_XYZ = load_colorchecker(illuminant="AM1.5g", output_coords="XYZ")
 # load the names and XYZ coordinates of the 24 default Babel colors

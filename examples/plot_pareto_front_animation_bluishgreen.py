@@ -14,8 +14,6 @@ from imageio.v3 import imread
 from imageio import get_writer
 from matplotlib.patches import Rectangle
 
-
-
 rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 14})
 
 # Use smaller population size than actual results for clarity!
@@ -86,7 +84,6 @@ n_trials = 1  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(280, 4000, interval)  # wavelengths
 
-initial_iters = 100  # number of initial evolutions for the archipelago
 add_iters = 150  # additional evolutions added each time if color
 # threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
@@ -107,13 +104,9 @@ n_junctions = 1  # number of junctions in the cell
 n_peaks = 2  # number of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker colors
-# color_names = [color_names[5]]#, color_names[14]]
-# color_XYZ = [color_XYZ[5]]#, color_XYZ[14]]
 
-# color_names = [color_names[-6]]
-# color_XYZ = [color_XYZ[-6]]
-color_names = [color_names[5]]#, color_names[14]]
-color_XYZ = [color_XYZ[5]]#, color_XYZ[14]]
+color_names = [color_names[5]]
+color_XYZ = [color_XYZ[5]]
 
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
@@ -146,9 +139,6 @@ solar_spec_color = LightSource(
         output_units="power_density_per_nm",
     ).spectrum(wl_col)[1]
 
-shapes = ["x", "o", "^", ".", "*", "v", "s", "+"]
-
-loop_n = 0
 
 illuminant = h*c*photon_flux_color[1]/ (wl_col * 1e-9)
 
@@ -173,20 +163,6 @@ Eg_black = np.loadtxt(
     ),
     ndmin=1,
 )
-
-# x_vals_start = np.loadtxt("results/pareto_plot_pop.txt")
-
-# RGB_initpop = np.zeros((len(x_vals_start), 3))
-
-# for i1, xs in enumerate(x_vals_start):
-#     spec = placeholder_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
-#     XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
-#     color_xyz_t = XYZColor(*XYZ_finalpop)
-#     RGB_initpop[i1, :] = convert_color(color_xyz_t, sRGBColor).get_value_tuple()
-
-# RGB_initpop[RGB_initpop > 1] = 1
-#
-# RGB_finalpop = np.zeros((len(x_vals_start), 3))
 
 best_eff = []
 overall_best_eff = []
@@ -225,18 +201,6 @@ if __name__ == "__main__":
 
     archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=pop_size)
 
-    # this doesn't work
-    # for i1 in range(pop_size):
-    #     print("setting population")
-    #     print('i1', archi[0].get_population().get_x()[i1])
-    #     archi[0].get_population().set_x(i1, x_vals_start[i1])
-    #     print(archi[0].get_population().get_x()[i1])
-
-
-    # if j1 == 0:
-    #     f_vals_start = archi[0].get_population().get_f()
-    #     plot_non_dominated_fronts(f_vals_start, axes=ax, color=RGB_initpop,
-    #                               linecolor='k')
 
     for k1 in range(add_iters):
         print("iteration", k1)
@@ -284,31 +248,12 @@ if __name__ == "__main__":
 
         ax.set_xlabel(r"Colour deviation, max(|$\Delta XYZ$|)")
         ax.set_ylabel("Cell efficiency (%)")
-
-        # left, bottom, width, height = [0.275, 0.8, 0.23, 0.15]
-        # ax2 = fig.add_axes([left, bottom, width, height])
-        #
-        # ax2.set_facecolor((0.7, 0.7, 0.7))
-        #
-        # f_vals_thresh = f_vals[f_vals[:, 0] < 0.051]
-        # RGB_finalpop_thresh = RGB_finalpop[f_vals[:, 0] < 0.051]
-        #
-        # plot_non_dominated_fronts(f_vals_thresh, axes=ax2, color=RGB_finalpop_thresh,
-        #                           mfc=RGB_finalpop_thresh,
-        #                           linecolor=RGB_finalpop_thresh[-1])
-        #
-        # for label in (ax2.get_xticklabels() + ax2.get_yticklabels()):
-        #     label.set_fontsize(8)
-
         ax.grid(axis="both")
-        # ax2.grid(axis="both")
-        # ax.set_xlim(0, np.max(f_vals_start[:, 0] + 0.01))
+
         ax.set_xlim(0, 1.02)
-        # ax.set_ylim(-100*(np.max(f_vals_start[:, 1]) + 0.01), 34.3)
-        ax.set_ylim(25, 34.3)
-        # ax2.set_xlim(-0.001, 0.051)
-        # ax2.set_ylim(23.5, 24.8)
-        # ax2.axvline(0.004, linestyle='--', color='k', alpha=0.6)
+
+        ax.set_ylim(20, 34.3)
+
         ax.set_facecolor((0.98, 0.97, 0.95))
 
         sln = f_vals[:, 0] < col_thresh
@@ -325,8 +270,8 @@ if __name__ == "__main__":
 
             ax.add_patch(
                 Rectangle(
-                    xy=(0.1, 27),
-                    width=0.1,
+                    xy=(0.05, 31.5),
+                    width=0.15,
                     height=2,
                     facecolor=RGB_finalpop[sln][best_acc_ind],
                     edgecolor='k',
@@ -341,20 +286,17 @@ if __name__ == "__main__":
 
         overall_best_eff.append(-100*np.min(f_vals[:, 1]))
 
-        # ax2.plot(best_eff, color='k', linewidth=1.5, label="Best white cell")
         ax2.plot(best_eff, color='k', linewidth=1.5, label="Best coloured cell")
-        ax2.plot(overall_best_eff, 'k--', alpha=0.5, linewidth=1.5, label="Best black cell")
+        ax2.plot(overall_best_eff, 'k--', alpha=0.5, linewidth=1.5, label="Best overall cell")
         ax2.plot(k1, best_eff[-1], 'ro')
         ax2.plot(k1, overall_best_eff[-1], 'ko', alpha=0.5)
         ax2.set_xlim(0, add_iters)
-        ax2.set_ylim(25, 34.3)
-        # ax2.legend(loc=[0.1, 0.6])
+        ax2.set_ylim(20, 34.3)
+
         ax2.legend(loc="lower right")
 
         ax2.set_xlabel("Iteration")
         ax2.set_ylabel("Efficiency (%)")
-
-
 
         plt.tight_layout()
         plt.savefig('results/' + str(k1) +'.png')
@@ -363,7 +305,7 @@ if __name__ == "__main__":
     n_frames[0] = 10
     n_frames[-1] = 10
 
-    with get_writer('mygif_bluishgreen.mp4', mode='I') as writer:
+    with get_writer('bluishgreen.mp4', mode='I') as writer:
         for k1 in range(add_iters):
 
             for _ in range(int(n_frames[k1])):

@@ -18,8 +18,6 @@ from matplotlib import rc
 rc("font", **{"family": "sans-serif",
               "sans-serif": ["Helvetica"]})
 
-
-
 force_rerun = False
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
@@ -402,7 +400,7 @@ if __name__ == "__main__":
     pal = sns.color_palette("husl", 3)
 
     fig, (ax, ax2) = plt.subplots(2, 1,
-                           figsize=(5, 5),
+                           figsize=(5.5, 4.5),
                            gridspec_kw={'height_ratios': [1, 1.65]},
                            )
 
@@ -421,6 +419,7 @@ if __name__ == "__main__":
                 upperE=1240/min(wl_cell), method="perfect_R", n_peaks=2,
                 x=pop_xr[k1].data, rad_eff=[1]*3
             )
+            print(pop_xr[k1].data)
 
         else:
             _, Is = getIVmax(
@@ -460,7 +459,7 @@ if __name__ == "__main__":
     ax2.plot(
         eff_xr.color,
         J1_c / 10,
-        label="InGaP",
+        label="GaInP",
         color=pal[0],
         marker=shapes[1],
         alpha=0.5,
@@ -502,9 +501,9 @@ if __name__ == "__main__":
     #     color=pal[0],
     #     alpha=0.6,
     # )
-    ax2.set_ylabel(r"$J_{max}$ per junction")
+    ax2.set_ylabel(r"$J_{max}$ per junction (mA/cm$^2$)")
     plt.tight_layout()
-    ax2.legend(loc=(0.05, 0.55))
+    ax2.legend(loc=(0.05, 0.58))
     ax.set_ylim(12, 45)
     ax2.set_ylim(0, 30)
 

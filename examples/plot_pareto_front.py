@@ -18,7 +18,7 @@ rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 # Use smaller population size than actual results for clarity!
 
 def plot_non_dominated_fronts(points, marker='o', comp=[0, 1], axes=None,
-                              color=None, linecolor='k', mfc='none',
+                              color=None, linecolor='k', mfc=None,
                               markersize=4, **kwargs):
     """
     Plots the nondominated fronts of a set of points. Makes use of :class:`~pygmo.fast_non_dominated_sorting` to
@@ -29,9 +29,9 @@ def plot_non_dominated_fronts(points, marker='o', comp=[0, 1], axes=None,
     if color is None:
         color = ['k']*len(points)
 
-    if mfc == 'none':
-        mfc = ['none']*len(points)
 
+    if mfc is None:
+        mfc = ['none']*len(points)
 
     fronts, _, _, _ = fast_non_dominated_sorting(points)
 
@@ -80,15 +80,9 @@ n_trials = 1  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(280, 4000, interval)  # wavelengths
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 400  # additional evolutions added each time if color
+add_iters = 200 # additional evolutions added each time if color
 # threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
-
-max_trials_col = (
-    5 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
-# which meet the color threshold
 
 R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) or not
@@ -101,8 +95,8 @@ n_junctions = 1  # number of junctions in the cell
 n_peaks = 2  # number of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker colors
-color_names = [color_names[-6]]#, color_names[14]]
-color_XYZ = [color_XYZ[-6]]#, color_XYZ[14]]
+color_names = [color_names[1]]#, color_names[14]]
+color_XYZ = [color_XYZ[1]]#, color_XYZ[14]]
 
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
@@ -139,7 +133,7 @@ shapes = ["x", "o", "^", ".", "*", "v", "s", "+"]
 
 loop_n = 0
 
-illuminant =  h*c*photon_flux_color[1]/ (wl_col * 1e-9)
+illuminant = h*c*photon_flux_color[1]/ (wl_col * 1e-9)
 
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
@@ -149,14 +143,8 @@ if __name__ == "__main__":
         n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
-    pop_size = n_params * 10
+    # pop_size = n_params * 10
 
-    start = time()
-    # Need this because otherwise the parallel running of the different islands (n_trials) may throw an error
-
-    fig, ax = plt.subplots(1, figsize=(4,3.5))
-
-    # Run for the selected peak shape, with both fixed and non-fixed height
     Eg_black = np.loadtxt(
         save_path
         + "/champion_pop_{}juncs_{}spec.txt".format(
@@ -167,15 +155,6 @@ if __name__ == "__main__":
 
     x_vals_start = np.loadtxt("results/pareto_plot_pop.txt")
 
-    RGB_initpop = np.zeros((len(x_vals_start), 3))
-
-    for i1, xs in enumerate(x_vals_start):
-        spec = placeholder_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
-        XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
-        color_xyz_t = XYZColor(*XYZ_finalpop)
-        RGB_initpop[i1, :] = convert_color(color_xyz_t, sRGBColor).get_value_tuple()
-
-    RGB_initpop[RGB_initpop > 1] = 1
 
     RGB_finalpop = np.zeros((len(x_vals_start), 3))
 
@@ -206,44 +185,84 @@ if __name__ == "__main__":
 
         udp = pg.problem(p_init)
 
-        algo = pg.algorithm(pg.moead(gen=add_iters, CR=1, F=1, preserve_diversity=True))
+        algo = pg.algorithm(pg.moead(gen=1, CR=1, F=0.5, preserve_diversity=True))
 
-        archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=pop_size)
+        archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=len(x_vals_start))
 
-        for i1 in range(pop_size):
-            archi[0].get_population().set_x(i1, x_vals_start[i1])
+        # for i1 in range(len(x_vals_start)):
+        #     pop = archi[0].get_population()
+        #     pop.set_x(i1, x_vals_start[i1])
+        #     archi[0].set_population(pop)
+
+        RGB_initpop = np.zeros((len(x_vals_start), 3))
+
+        for i1, xs in enumerate(archi[0].get_population().get_x()):
+            spec = placeholder_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
+            XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
+            color_xyz_t = XYZColor(*XYZ_finalpop)
+            RGB_initpop[i1, :] = convert_color(color_xyz_t, sRGBColor).get_value_tuple()
+
+        RGB_initpop[RGB_initpop > 1] = 1
+
+        fig, (ax, ax3) = plt.subplots(1, 2, figsize=(10, 4))
 
         if j1 == 0:
             f_vals_start = archi[0].get_population().get_f()
             plot_non_dominated_fronts(f_vals_start, axes=ax, color=RGB_initpop,
                                       linecolor='k')
 
-        archi = internal_run.run(
-            target_col,
-            photon_flux_cell,
-            illuminant,
-            n_peaks,
-            n_junctions,
-            pop_size,
-            add_iters,
-            n_trials=n_trials,
-            power_in=light_source.power_density,
-            spectrum_bounds=spectrum_obj.get_bounds(),
-            Eg_black=Eg_black,
-            archi=archi,
-            base=base,
-            max_height=max_height,
-        )
+        best_eff = np.zeros(add_iters)
+        best_overall_eff = np.zeros(add_iters)\
 
-        f_vals = archi[0].get_population().get_f()
-        x_vals = archi[0].get_population().get_x()
+        best_eff[0] = 0
+        best_overall_eff[0] = -100*np.min(f_vals_start[:, 1])
+
+        for i1 in range(1, add_iters):
+            print(i1)
+            archi = internal_run.run(
+                target_col,
+                photon_flux_cell,
+                illuminant,
+                n_peaks,
+                n_junctions,
+                len(x_vals_start),
+                gen=1,
+                n_trials=n_trials,
+                power_in=light_source.power_density,
+                spectrum_bounds=spectrum_obj.get_bounds(),
+                Eg_black=Eg_black,
+                archi=archi,
+                base=base,
+                max_height=max_height,
+            )
+
+            f_vals = archi[0].get_population().get_f()
+            x_vals = archi[0].get_population().get_x()
+            sln = f_vals[:, 0] < col_thresh
+
+            best_overall_eff[i1] = -100*np.min(f_vals[:, 1])
+
+            if np.sum(sln) > 0:
+
+                best_acc_ind = np.argmin(f_vals[sln, 1])
+                new_eff = -100*f_vals[sln, 1][best_acc_ind]
+                if new_eff > max(best_eff):
+                    best_eff[i1] = new_eff
+
+                else:
+                    best_eff[i1] = max(best_eff)
+
+            else:
+                best_eff[i1] = max(best_eff)
+
 
         # back-calculate colors:
+        XYZ_finalpop = np.zeros((len(x_vals), 3))
 
         for i1, xs in enumerate(x_vals):
             spec = spectrum_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
-            XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
-            color_xyz_t = XYZColor(*XYZ_finalpop)
+            XYZ_finalpop[i1] = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
+            color_xyz_t = XYZColor(*XYZ_finalpop[i1])
             RGB_finalpop[i1, :] = np.clip(convert_color(color_xyz_t,
                                                  sRGBColor).get_value_tuple(),
                                           a_min=0, a_max=1)
@@ -262,7 +281,7 @@ if __name__ == "__main__":
         ax.set_xlabel(r"Colour deviation, max(|$\Delta XYZ$|)")
         ax.set_ylabel("Cell efficiency (%)")
 
-        left, bottom, width, height = [0.275, 0.8, 0.23, 0.15]
+        left, bottom, width, height = [0.13, 0.8, 0.15, 0.15]
         ax2 = fig.add_axes([left, bottom, width, height])
 
         ax2.set_facecolor((0.7, 0.7, 0.7))
@@ -279,14 +298,54 @@ if __name__ == "__main__":
 
         ax.grid(axis="both")
         ax2.grid(axis="both")
+        ax3.grid(axis="both")
         # ax.set_xlim(0, np.max(f_vals_start[:, 0] + 0.01))
         ax.set_xlim(0, 1.02)
         # ax.set_ylim(-100*(np.max(f_vals_start[:, 1]) + 0.01), 34.3)
         ax.set_ylim(16, 34.3)
-        ax2.set_xlim(-0.001, 0.051)
-        ax2.set_ylim(23.5, 24.8)
+        ax3.set_ylim(16, 34.3)
+        ax2.set_xlim(-0.001, 0.01)
+        ax2.set_ylim(29, 31)
         ax2.axvline(0.004, linestyle='--', color='k', alpha=0.6)
         ax.set_facecolor((0.98, 0.97, 0.95))
 
-    plt.tight_layout()
-    plt.show()
+        best_eff[best_eff == 0] = np.nan
+
+        ax3.plot(best_eff, color='k', linewidth=1.5, label="Best white cell")
+        ax3.plot(best_overall_eff, 'k--', alpha=0.5, linewidth=1.5, label="Best overall cell")
+        ax3.legend()
+        ax3.set_xlabel("Iteration")
+        ax3.set_ylabel("Efficiency (%)")
+        ax3.set_xlim(0, add_iters-1)
+
+        plt.tight_layout()
+        plt.show()
+
+        plt.figure()
+        plt.plot(-f_vals[:,1], np.abs(XYZ_finalpop[:,0] - target_col[0])/target_col[0], 'o', label='X')
+        plt.plot(-f_vals[:,1], np.abs(XYZ_finalpop[:,1] - target_col[1])/target_col[1], 'o', label='Y')
+        plt.plot(-f_vals[:,1], np.abs(XYZ_finalpop[:,2] - target_col[2])/target_col[2], 'o', label='Z')
+        plt.legend()
+        plt.title('Fractional difference in X/Y/Z')
+        plt.xlabel("Efficiency of vector")
+        plt.show()
+        #
+        # sumXYZ = np.sum(XYZ_finalpop, axis=1)
+        #
+        # plt.figure()
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,0], 'o', label='X')
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,1], 'o',  label='Y')
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,2], 'o',  label='Z')
+        # plt.legend()
+        # plt.title('Values of X/Y/Z')
+        # plt.xlabel("Efficiency of vector")
+        # plt.show()
+        #
+        # plt.figure()
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,0]/sumXYZ, 'o', label='x')
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,1]/sumXYZ, 'o', label='y')
+        # plt.plot(-f_vals[:,1], XYZ_finalpop[:,1], 'o', label='Y')
+        # plt.legend()
+        # plt.title('Values of xyY')
+        # plt.xlabel("Efficiency of vector")
+        # plt.show()

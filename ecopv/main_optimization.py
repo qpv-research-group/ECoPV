@@ -24,6 +24,7 @@ from ecopv.spectrum_functions import (
     make_spectrum_ndip,
     gen_spectrum_ndip,
     delta_XYZ,
+    XYZ_from_pop_dips
 )
 
 hc = h * c
@@ -530,12 +531,8 @@ def multiple_color_cells(
                         max_height=max_height,
                     )
 
-                    color_XYZ_found[k1] = spec_to_XYZ(
-                        spec,
-                        illuminant,
-                        cmf_visible,
-                        interval,
-                    )
+                    color_XYZ_found[k1] = XYZ_from_pop_dips(champion_pop[k1], n_peaks,
+                                                            photon_flux, interval)
 
                     if plot:
                         spec = internal_run.spec_func(
@@ -656,12 +653,12 @@ class single_color_cell:
             j01_method,
             **kwargs
         )
-
-        udp = pg.problem(p_init)
-        algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=1, preserve_diversity=True))
         # decomposition="bi"))#, preserve_diversity=True, decomposition="bi"))
 
         if archi is None:
+
+            udp = pg.problem(p_init)
+            algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=0.5, preserve_diversity=True))
             archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
 
             if seed_pop is not None:
@@ -704,7 +701,7 @@ class color_optimization_only:
         p_init = color_optimization(n_peaks, target, illuminant, self.spec_func)
 
         udp = pg.problem(p_init)
-        algo = pg.algorithm(pg.de(gen=gen, CR=1, F=1, ftol=ftol))
+        algo = pg.algorithm(pg.de(gen=gen, CR=1, F=0.5, ftol=ftol))
 
         if archi is None:
             archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
@@ -807,6 +804,8 @@ class color_function_mobj:
                       rad_eff=self.rad_eff,
                       ) / self.incident_power
 
+        # if delta > 0.1:
+        #     eta = 0
 
         return delta, eta
 

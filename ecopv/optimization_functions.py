@@ -129,7 +129,7 @@ def db_cell_calculation_perfectR(
     #     [1240/(x[0]-x[2]/2), upperE] # below the lower band
     # ])
 
-    x = reorder_peaks(x, n_peaks, len(egs))
+    x = reorder_peaks(x, n_peaks, len(x) - 2*n_peaks)
 
     limits = [[0, 1240/(x[n_peaks-1]+x[2*n_peaks-1]/2)]]
 
@@ -148,6 +148,18 @@ def db_cell_calculation_perfectR(
     overlapping = np.where(limits[:, 0] > limits[:, 1])[0]
     limits[overlapping + 1, 0] = limits[overlapping, 1]
     limits = np.delete(limits, overlapping, axis=0)
+    # if len(limits) < 4:
+    #     print('after', limits)
+
+    # Can still have issues with > 3 peaks!
+    # # if we have more than 2 peaks, some peaks can overlap. Remove superfluous limits
+    # can also have partial overlap
+    # o_ind = np.where(limits[1:, 0] < limits[:-1, 1])[0]
+    # if len(o_ind) > 0:
+    #     print(limits)
+    #     limits[o_ind, 1] = limits[o_ind + 1, 1]
+    #     limits = np.delete(limits, o_ind + 1, axis=0)
+    #     print(limits, x)
 
     limits[limits < 0] = 0 # set negative values to 0
     limits[limits > upperE] = upperE # set values above upperE to upperE

@@ -314,13 +314,10 @@ def delta_XYZ(target: np.ndarray, col: np.ndarray):
 
 
 def XYZ_from_pop_dips(pop, n_peaks, photon_flux, interval):
-    cs = pop[:n_peaks]
-    ws = pop[n_peaks : 2 * n_peaks]
-
     cmf = load_cmf(photon_flux[0])
     # T = 298
 
-    R_spec = gen_spectrum_ndip(cs, ws, wl=photon_flux[0])
+    R_spec = gen_spectrum_ndip(pop, n_peaks, wl=photon_flux[0])
     XYZ = np.array(
         spec_to_XYZ(
             R_spec, hc * photon_flux[1] / (photon_flux[0] * 1e-9), cmf, interval

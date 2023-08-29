@@ -51,8 +51,9 @@ base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
 n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
-n_peak_loop = [2, 3, 4]  # loop through these numbers of reflection peaks
-n_junc_loop = [1]
+n_peak_loop = [2, 3]  # loop through these numbers of reflection peaks
+
+n_junc_loop = [3]
 n_peak_loop = [2]
 
 color_names, color_XYZ = load_colorchecker(illuminant="AM1.5g", output_coords="XYZ")
@@ -151,7 +152,7 @@ if __name__ == "__main__":
                 + "_"
                 + str(base)
                 + "_"
-                + j01_method + light_source_name + ".txt"
+                + j01_method + light_source_name + "_2.txt"
             )
 
             if not path.exists(save_loc) or force_rerun:
@@ -168,12 +169,12 @@ if __name__ == "__main__":
                 minimum_effs_file = "results/champion_eff_" + R_type  + str(n_peaks) +\
                                      "_" + str(n_junctions - 1) + "_" + \
                                      str(fixed_height) + str(max_height) + "_" + \
-                                     str(base) + "_"  + j01_method + light_source_name + ".txt"
+                                     str(base) + "_"  + j01_method + light_source_name + "_2.txt"
 
                 seed_pop_file = "results/champion_pop_" + R_type  + str(n_peaks) +\
                     "_" + str(n_junctions - 1) + "_" + \
                     str(fixed_height) + str(max_height) + "_" + \
-                    str(base) + "_"  + j01_method + light_source_name + ".txt"
+                    str(base) + "_"  + j01_method + light_source_name + "_2.txt"
 
 
                 if path.exists(minimum_effs_file) and include_minimum_effs:
@@ -235,7 +236,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + light_source_name + ".txt",
+                    + "_" + j01_method + light_source_name + "_2.txt",
                     champion_effs,
                 )
                 np.savetxt(
@@ -249,23 +250,23 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + light_source_name + ".txt",
+                    + "_" + j01_method + light_source_name + "_2.txt",
                     champion_pops,
                 )
-                np.save(
-                    "results/final_pop_"
-                    + R_type
-                    + str(n_peaks)
-                    + "_"
-                    + str(n_junctions)
-                    + "_"
-                    + str(fixed_height)
-                    + str(max_height)
-                    + "_"
-                    + str(base)
-                    + "_"  + j01_method + light_source_name + ".npy",
-                    final_populations,
-                )
+                # np.save(
+                #     "results/final_pop_"
+                #     + R_type
+                #     + str(n_peaks)
+                #     + "_"
+                #     + str(n_junctions)
+                #     + "_"
+                #     + str(fixed_height)
+                #     + str(max_height)
+                #     + "_"
+                #     + str(base)
+                #     + "_"  + j01_method + light_source_name + ".npy",
+                #     final_populations,
+                # )
 
             else:
 
@@ -280,7 +281,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + light_source_name + ".txt",
+                    + "_"  + j01_method + light_source_name + "_2.txt",
                 )
                 champion_pops = np.loadtxt(
                     "results/champion_pop_"
@@ -293,7 +294,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + light_source_name + ".txt",
+                    + "_" + j01_method + light_source_name + "_2.txt",
                 )
                 champion_bandgaps = champion_pops[:, -n_junctions:]
 
@@ -343,18 +344,3 @@ if __name__ == "__main__":
             plt.show()
 
 
-import pandas as pd
-
-color_names, color_xyY = load_colorchecker(illuminant="AM1.5g", output_coords="xyY")
-
-data = {'index': np.arange(1, len(color_names)+1), 'name': color_names}
-
-df = pd.DataFrame(data)
-
-df['x'] = color_xyY[:, 0]
-df['y'] = color_xyY[:, 1]
-df['Y'] = color_xyY[:, 2]
-
-df['1J'], df['2J'], df['3J'], df['4J'], df['5J'], df['6J'] = champion_effs_table[0]
-
-df.to_csv('AM15G_xyY_ColorChecker_optimized.csv', index=False)

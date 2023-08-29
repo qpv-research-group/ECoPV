@@ -1,6 +1,3 @@
-import numpy as np
-from solcore.light_source import LightSource
-import matplotlib.pyplot as plt
 from matplotlib import rc
 from ecopv.spectrum_functions import load_cmf, spec_to_XYZ
 from ecopv.main_optimization import load_colorchecker
@@ -9,6 +6,10 @@ from cycler import cycler
 import seaborn as sns
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
+import numpy as np
+import matplotlib.pyplot as plt
+from solcore.light_source import LightSource
+import pathlib
 
 pal = sns.husl_palette(6, s=0.6)
 
@@ -36,22 +37,16 @@ photon_flux_bb = np.array(LightSource(
     T=5778,
 ).spectrum(wl_cell))
 
-fig, ax = plt.subplots(1,1)
-ax.plot(wl_cell, photon_flux_AM15[1]/1e18, '-k', label="AM1.5G")
-ax.plot(wl_cell, photon_flux_bb[1]/1e18, '--r', label="5778K black body")
-ax.set_xlabel("Wavelength (nm)")
-ax.set_ylabel(r"Photon flux ($\times 10^{18}$ photons m$^{-2}$s$^{-1}$ nm$^{-1}$)")
-ax.grid(axis="both", color="0.9")
-ax.legend()
+fig, (ax1, ax2) = plt.subplots(1,2, figsize=(11, 4))
+ax1.plot(wl_cell, photon_flux_AM15[1]/1e18, '-k', label="AM1.5G")
+ax1.plot(wl_cell, photon_flux_bb[1]/1e18, '--r', label="5778K black body")
+ax1.set_xlabel("Wavelength (nm)")
+ax1.set_ylabel(r"Photon flux ($\times 10^{18}$ photons m$^{-2}$s$^{-1}$ nm$^{-1}$)")
+ax1.grid(axis="both", color="0.9")
+ax1.legend()
 plt.tight_layout()
-ax.set_xlim(min(wl_cell), max(wl_cell))
-ax.set_ylim(-0.05, 5.2)
-plt.show()
-
-import numpy as np
-import matplotlib.pyplot as plt
-from solcore.light_source import LightSource
-import pathlib
+ax1.set_xlim(min(wl_cell), max(wl_cell))
+ax1.set_ylim(-0.05, 5.2)
 
 wl_cell = np.linspace(300, 1800, 400)
 
@@ -88,21 +83,20 @@ cols = cycler("color", pal2)
 params = {"axes.prop_cycle": cols}
 plt.rcParams.update(params)
 
-fig, ax = plt.subplots(1,1)
-ax.plot(wl_cell, SPD/max(SPD), '-', label="AM1.5G", color=pal[5])
-ax.plot(wl_cell, SPD_bb/max(SPD_bb), '--', label="5778K black body", color="k")
-ax.plot(D50[0], D50[1]/max(D50[1]), '-.', label="D50 illuminant", color=pal[1])
-ax.plot(D50[0], D65[1]/max(D65[1]), '-.', label="D65 illuminant", color=pal[4])
-ax.plot(wl_cell, cmf[:,0]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{x}$/3")
-ax.plot(wl_cell, cmf[:,1]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{y}$/3")
-ax.plot(wl_cell, cmf[:,2]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{z}$/3")
-ax.set_xlabel("Wavelength (nm)")
-ax.set_ylabel("Normalised spectral power distribution")
-ax.grid(axis="both", color="0.9")
-ax.legend(loc="lower right")
+ax2.plot(wl_cell, SPD/max(SPD), '-', label="AM1.5G", color=pal[5])
+ax2.plot(wl_cell, SPD_bb/max(SPD_bb), '--', label="5778K black body", color="k")
+ax2.plot(D50[0], D50[1]/max(D50[1]), '-.', label="D50 illuminant", color=pal[1])
+ax2.plot(D50[0], D65[1]/max(D65[1]), '-.', label="D65 illuminant", color=pal[4])
+ax2.plot(wl_cell, cmf[:,0]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{x}$/3", color='r')
+ax2.plot(wl_cell, cmf[:,1]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{y}$/3", color='g')
+ax2.plot(wl_cell, cmf[:,2]/3, linestyle='dotted', alpha=0.8, label=r"$\bar{z}$/3", color='b')
+ax2.set_xlabel("Wavelength (nm)")
+ax2.set_ylabel("Normalised spectral power distribution")
+ax2.grid(axis="both", color="0.9")
+ax2.legend(loc="lower right")
 plt.tight_layout()
-ax.set_xlim(min(wl_cell), max(wl_cell))
-ax.set_ylim(0, 1.02)
+ax2.set_xlim(min(wl_cell), 900)
+ax2.set_ylim(0, 1.02)
 plt.show()
 
 

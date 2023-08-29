@@ -18,8 +18,7 @@ from time import time
 
 from matplotlib import rc
 rc("font", **{"family": "sans-serif",
-              "sans-serif": ["Helvetica"],
-              "size": 13})
+              "sans-serif": ["Helvetica"]})
 
 
 # in such a large number of runs, get one or two values which are not converged. Try
@@ -217,15 +216,15 @@ if __name__ == "__main__":
     for i1, Y in enumerate(Ys):
 
         if os.path.exists(
-            save_path + "/pop_gamut_Y_{}_{}_{}_rough.npy".format(Y, n_junctions, "Si")
+            save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
         ) and not force_rerun:
             print("Load existing result")
 
             pop_array = np.load(
-                save_path + "/pop_gamut_Y_{}_{}_{}_rough.npy".format(Y, n_junctions, "Si")
+                save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
             )
             eff_array = np.load(
-                save_path + "/eff_gamut_Y_{}_{}_{}_rough.npy".format(Y, n_junctions, "Si")
+                save_path + "/eff_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
             )
 
         else:
@@ -284,7 +283,8 @@ if __name__ == "__main__":
                             j01_method = j01_method,
                             minimum_eff = minimum_eff,
                             illuminant=light_source_name,
-                            seed_population=mpseed_pop],
+                            seed_population=np.array([seed_pop]),
+                            rad_eff=[0.1, 0.016]
 
                         )
 
@@ -302,11 +302,11 @@ if __name__ == "__main__":
             print("sum:", np.sum(is_possible))
 
             np.save(
-                save_path + "/pop_gamut_Y_{}_{}_{}_rough.npy".format(Y, n_junctions, "Si"),
+                save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si"),
                 pop_array,
             )
             np.save(
-                save_path + "/eff_gamut_Y_{}_{}_{}_rough.npy".format(Y, n_junctions, "Si"),
+                save_path + "/eff_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si"),
                 eff_array,
             )
 
@@ -404,12 +404,13 @@ if __name__ == "__main__":
         # plt.show()
 
         wl_gamut_plot(axs2[i1])
-        c = axs2[i1].pcolor(xs, ys, Egs.T, vmin=1.55, vmax=1.7, cmap="inferno_r")
+        print(np.nanmin(Egs), np.nanmax(Egs))
+        c = axs2[i1].pcolor(xs, ys, Egs.T, vmin=1.54, vmax=1.75, cmap="inferno_r")
         axs3[i1].axis("off")
 
         if i1 == 1:
             fig.colorbar(c, ax=axs3[i1], orientation="horizontal", fraction=1,
-                         ticks=np.arange(1.55, 1.71, 0.05))
+                         ticks=np.arange(1.54, 1.75, 0.05))
             axs3[i1-1].text(1.1, 0.7, "Bandgap (eV)", ha="right", va="center")
 
         axs2[i1].grid(axis="both", color="0.4", alpha=0.5)
