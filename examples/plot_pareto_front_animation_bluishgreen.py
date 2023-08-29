@@ -3,18 +3,16 @@ from ecopv.spectrum_functions import make_spectrum_ndip, spec_to_XYZ, load_cmf
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-from time import time
 import pygmo as pg
 from os import path
 from pygmo.core import fast_non_dominated_sorting
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
-from copy import deepcopy
 from matplotlib import rc
 from solcore.constants import h, c
 from imageio.v3 import imread
 from imageio import get_writer
+from matplotlib.patches import Rectangle
 
 
 
@@ -34,8 +32,8 @@ def plot_non_dominated_fronts(points, marker='o', comp=[0, 1], axes=None,
     if color is None:
         color = ['k']*len(points)
 
-    if mfc == 'none':
-        mfc = ['none']*len(points)
+    # if mfc == 'none':
+    #     mfc = ['none']*len(points)
 
 
     fronts, _, _, _ = fast_non_dominated_sorting(points)
@@ -89,7 +87,7 @@ interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(280, 4000, interval)  # wavelengths
 
 initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 200  # additional evolutions added each time if color
+add_iters = 150  # additional evolutions added each time if color
 # threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
@@ -112,8 +110,10 @@ color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker
 # color_names = [color_names[5]]#, color_names[14]]
 # color_XYZ = [color_XYZ[5]]#, color_XYZ[14]]
 
-color_names = [color_names[-6]]#, color_names[14]]
-color_XYZ = [color_XYZ[-6]]#, color_XYZ[14]]
+# color_names = [color_names[-6]]
+# color_XYZ = [color_XYZ[-6]]
+color_names = [color_names[5]]#, color_names[14]]
+color_XYZ = [color_XYZ[5]]#, color_XYZ[14]]
 
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
     udp = pg.problem(p_init)
 
-    algo = pg.algorithm(pg.moead(gen=1, CR=1, F=1, preserve_diversity=True))
+    algo = pg.algorithm(pg.moead(gen=1, CR=1, F=0.5, preserve_diversity=True))
 
     archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=pop_size)
 
@@ -246,14 +246,6 @@ if __name__ == "__main__":
         RGB_finalpop = np.zeros((len(x_vals), 3))
         # back-calculate colors:
 
-        for i1, xs in enumerate(x_vals):
-            spec = spectrum_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
-            XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
-            color_xyz_t = XYZColor(*XYZ_finalpop)
-            RGB_finalpop[i1, :] = np.clip(convert_color(color_xyz_t,
-                                                        sRGBColor).get_value_tuple(),
-                                          a_min=0, a_max=1)
-
         archi = internal_run.run(
             target_col,
             photon_flux_cell,
@@ -271,7 +263,13 @@ if __name__ == "__main__":
             max_height=max_height,
         )
 
-
+        for i1, xs in enumerate(x_vals):
+            spec = spectrum_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
+            XYZ_finalpop = spec_to_XYZ(spec, solar_spec_color, cmf, interval)
+            color_xyz_t = XYZColor(*XYZ_finalpop)
+            RGB_finalpop[i1, :] = np.clip(convert_color(color_xyz_t,
+                                                        sRGBColor).get_value_tuple(),
+                                          a_min=0, a_max=1)
 
         fig, (ax, ax2) = plt.subplots(1,2, figsize=(9, 4))
         plot_non_dominated_fronts(f_vals, axes=ax,
@@ -305,9 +303,9 @@ if __name__ == "__main__":
         ax.grid(axis="both")
         # ax2.grid(axis="both")
         # ax.set_xlim(0, np.max(f_vals_start[:, 0] + 0.01))
-        ax.set_xlim(0, 3.02)
+        ax.set_xlim(0, 1.02)
         # ax.set_ylim(-100*(np.max(f_vals_start[:, 1]) + 0.01), 34.3)
-        ax.set_ylim(16, 34.3)
+        ax.set_ylim(25, 34.3)
         # ax2.set_xlim(-0.001, 0.051)
         # ax2.set_ylim(23.5, 24.8)
         # ax2.axvline(0.004, linestyle='--', color='k', alpha=0.6)
@@ -325,6 +323,16 @@ if __name__ == "__main__":
             else:
                 best_eff.append(best_eff[-1])
 
+            ax.add_patch(
+                Rectangle(
+                    xy=(0.1, 27),
+                    width=0.1,
+                    height=2,
+                    facecolor=RGB_finalpop[sln][best_acc_ind],
+                    edgecolor='k',
+                )
+            )
+
         else:
             if k1 == 0:
                 best_eff.append(0)
@@ -339,24 +347,37 @@ if __name__ == "__main__":
         ax2.plot(k1, best_eff[-1], 'ro')
         ax2.plot(k1, overall_best_eff[-1], 'ko', alpha=0.5)
         ax2.set_xlim(0, add_iters)
-        ax2.set_ylim(16, 34.3)
+        ax2.set_ylim(25, 34.3)
         # ax2.legend(loc=[0.1, 0.6])
-        ax2.legend(loc="center right")
+        ax2.legend(loc="lower right")
 
         ax2.set_xlabel("Iteration")
         ax2.set_ylabel("Efficiency (%)")
+
+
 
         plt.tight_layout()
         plt.savefig('results/' + str(k1) +'.png')
 
     n_frames = np.ones(add_iters)
-    n_frames[0] = 20
-    n_frames[-1] = 20
+    n_frames[0] = 10
+    n_frames[-1] = 10
 
-    with get_writer('mygif_bluishgreen.gif', mode='I') as writer:
+    with get_writer('mygif_bluishgreen.mp4', mode='I') as writer:
         for k1 in range(add_iters):
 
             for _ in range(int(n_frames[k1])):
 
                 image = imread('results/' + str(k1) +'.png')
                 writer.append_data(image)
+
+    writer.close()
+
+    # import glob
+    # import os
+    #
+    # writer = get_writer('test.mp4', fps=5)
+    # for file in glob.glob(os.path.join('results', f'{k1}*.png')):
+    #     im = imread(file)
+    #     writer.append_data(im)
+    # writer.close()
