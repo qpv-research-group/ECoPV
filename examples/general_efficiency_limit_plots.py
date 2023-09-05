@@ -142,140 +142,10 @@ alphas = [1, 0.5]
 
 fixed_height_loop = [True]
 
-fig, (ax1, ax_l, ax2) = plt.subplots(3, figsize=(5.5, 7),
-                                     gridspec_kw={"height_ratios": [1, 0.2, 1]})
-
-
-for j1, n_junctions in enumerate(n_junc_loop):
-    for i1, n_peaks in enumerate(n_peak_loop):
-
-        champion_effs = np.loadtxt(
-            "results/champion_eff_"
-            + R_type
-            + str(n_peaks)
-            + "_"
-            + str(n_junctions)
-            + "_"
-            + str(fixed_height)
-            + str(max_height)
-            + "_"
-            + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
-        )
-        champion_pops = np.loadtxt(
-            "results/champion_pop_"
-            + R_type
-            + str(n_peaks)
-            + "_"
-            + str(n_junctions)
-            + "_"
-            + str(fixed_height)
-            + str(max_height)
-            + "_"
-            + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
-        )
-
-        append_black = black_cell_eff[n_junctions - 1]
-        eff_xr = make_sorted_xr(champion_effs, color_names, append_black,
-                                ascending=True)
-
-        if i1 == len(n_peak_loop) - 1:
-            ax1.plot(
-                eff_xr.color.data,
-                eff_xr.data,
-                mfc="none",
-                linestyle="none",
-                color=cols[i1],
-                marker=shapes[j1],
-                markersize=4,
-            )
-
-        else:
-            ax1.plot(
-                eff_xr.color.data,
-                eff_xr.data,
-                mfc="none",
-                linestyle="none",
-                color=cols[i1],
-                marker=shapes[j1],
-                markersize=4,
-            )
-
-        eff_loss = (
-            100
-            * (eff_xr - black_cell_eff[n_junctions - 1])
-            / black_cell_eff[n_junctions - 1]
-        )
-
-        if j1 == len(n_junc_loop) - 1:
-            ax2.plot(
-                eff_loss.color.data,
-                eff_loss.data,
-                mfc="none",
-                linestyle="none",
-                color=cols[i1],
-                marker=shapes[j1],
-                markersize=4,
-            )
-
-        else:
-            ax2.plot(
-                eff_loss.color.data,
-                eff_loss.data,
-                mfc="none",
-                linestyle="none",
-                color=cols[i1],
-                marker=shapes[j1],
-                markersize=4,
-            )
-
-        # plt.legend(title="Fixed h:")
-
-apply_formatting(ax1, n_colors=len(eff_loss.color.data))
-apply_formatting(ax2, eff_loss.color.data)
-
-for i1, n_junctions in enumerate(n_junc_loop):
-    ax_l.plot(0, 0, marker=shapes[i1], color='k', linestyle='none', label=n_junctions, mfc='none')
-
-ax_l.set_xlim(10, 20)
-ax_l.legend(title="Junctions:", ncol=3, loc="center left")
-
-ax_l2 = ax_l.twinx()
-
-for i1, n_peaks in enumerate(n_peak_loop):
-    ax_l2.plot(0, 0, marker='o', color=cols[i1], linestyle='none', label=n_peaks, mfc='none')
-
-ax_l2.legend(title="Reflectance peaks:", ncol=3, loc="center right")
-ax_l2.set_xlim(10, 20)
-
-ax2.set_ylim(-40, 0.6)
-
-# plt.legend(title="Fixed h:")
-ax1.set_ylabel("Efficiency (%)")
-
-ax2.set_ylabel("Relative efficiency loss (%)")
-
-# ax1.set_ylim(50, 55)
-# leg = ax1.legend(bbox_to_anchor=(0.2, 0), loc="upper center",
-#                  title="Junctions:", ncol=6,
-#            )
-# # leg.get_title().set_fontsize('9')
-# leg = ax2.legend(bbox_to_anchor=(0.95, 1.2), loc="upper right",
-#                  title="Peaks:", ncol=3,
-#            )
-# leg.get_title().set_fontsize('9')
-
-ax_l.axis("off")
-ax_l2.axis("off")
-plt.subplots_adjust(wspace=0, hspace=0)
-plt.tight_layout()
-add_colour_patches(ax2, patch_width, eff_loss.color.data, color_XYZ_xr.data)
-plt.show()
-
 # optimal bandgaps - new plot
 
 color_list = sRGB_color_list(order="sorted", include_black=True)
+color_list_patches = sRGB_color_list(order="sorted", include_black=False)
 # color_list = np.insert(color_list, 0, [0,0,0], axis=0)
 
 n_peak_loop = [2]
@@ -298,7 +168,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
         + str(max_height)
         + "_"
         + str(base) + "_"  + j01_method + light_source_name
-        + "_2.txt"
+        + ".txt"
     )
 
     # Eg_xr = np.vstack(
@@ -324,8 +194,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
         lowest_edge_1 = champion_pops[:,0] - champion_pops[:,2]/2
         highest_edge_1 = champion_pops[:,0] + champion_pops[:,2]/2
 
-        lowest_edge_2 = champion_pops[:,1] - champion_pops[:,3]/2
-        highest_edge_2 = champion_pops[:,1] + champion_pops[:,3]/2
+        lowest_edge = champion_pops[:,1] - champion_pops[:,3]/2
+        highest_edge = champion_pops[:,1] + champion_pops[:,3]/2
 
 
     axs[j1].plot(Eg_values, '--k', alpha=0.5)
@@ -343,8 +213,8 @@ for j1, n_junctions in enumerate(n_junc_loop):
                                  alpha=0.1)
 
             axs[j1].fill_between([k1-0.5, k1+0.5],
-                                 y1=1240 / highest_edge_2[k1],
-                                 y2=1240 / lowest_edge_2[k1],
+                                 y1=1240 / highest_edge[k1],
+                                 y2=1240 / lowest_edge[k1],
                                  color='k',
                                  alpha=0.1)
 
@@ -388,12 +258,10 @@ for j1, n_junctions in enumerate(n_junc_loop):
 
     if j1 > 3:
         # axs[j1].set_xlabel(r"$Y$")
-        add_colour_patches(axs[j1], patch_width, np.insert(col_names_all_desc.data,
-                                                           0, "Black"), \
-                                                          color_list,
-                           color_coords="sRGB")
+        add_colour_patches(axs[j1], patch_width, labels=champion_pops.color.data,
+                           color_XYZ=color_list_patches, color_coords='sRGB')
 
-    apply_formatting(axs[j1], n_colors=25)
+    apply_formatting(axs[j1], color_labels=champion_pops.color.data, n_colors=25)
     axs[j1].grid(axis='x')
 
 
@@ -450,7 +318,7 @@ fig, axes = plt.subplots(
     gridspec_kw={
         "height_ratios": [1, 2],
         "width_ratios": [5, 1],
-        "hspace": 0.1,
+        "hspace": 0.15,
         "wspace": 0.05,
     },
     figsize=(10.5, 5),
@@ -478,7 +346,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
+            + ".txt"
         )
         champion_pops = np.loadtxt(
             "results/champion_pop_"
@@ -491,7 +359,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
+            + ".txt"
         )
         eff_xr = make_sorted_xr(champion_effs, color_names, ascending=True)
         c_xr = make_sorted_xr(champion_pops[:, :n_peaks], color_names,
@@ -575,6 +443,11 @@ plt.subplots_adjust(bottom=0.25, top=0.95, left=0.1, right=0.97)
 apply_formatting(axes[0, 0], n_colors=24)
 apply_formatting(axes[1, 0], eff_xr.color.data)
 add_colour_patches(axes[1, 0], patch_width, eff_xr.color.data, color_XYZ_xr)
+
+axes[0,0].set_title('(a)', loc='left')
+axes[1,0].set_title('(b)', loc='left')
+axes[1,1].set_title('(c)', loc='left')
+
 plt.tight_layout()
 fig.savefig("fig4.pdf", bbox_inches="tight")
 plt.show()
@@ -586,7 +459,7 @@ n_peak_loop = [2, 3]
 
 loop_n = 0
 
-cols = ["k", "b"]
+cols = ["k", "r"]
 
 table_for_paper = np.zeros((25, 9))
 
@@ -616,7 +489,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
+            + ".txt"
         )
         champion_pops = np.loadtxt(
             "results/champion_pop_"
@@ -629,7 +502,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + "_2.txt"
+            + ".txt"
         )
 
         append_black = black_cell_eff[n_junctions - 1]
@@ -698,9 +571,11 @@ ax1.set_ylim(-38, 1)
 
 # plt.legend(title="Fixed h:")
 ax1.set_ylabel("Relative efficiency change (%)")
+ax1.set_title('(a)', loc='left')
 
 ax2.set_ylabel("Relative efficiency change (%)")
-ax2.set_ylim(-0.3, 0.85)
+ax2.set_title('(b)', loc='left')
+# ax2.set_ylim(-0.3, 2)
 
 ax_l.axis("off")
 ax_l2.axis("off")

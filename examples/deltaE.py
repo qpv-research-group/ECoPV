@@ -6,6 +6,8 @@ from ecopv.spectrum_functions import XYZ_from_pop_dips, convert_XYZ_to_Lab
 from solcore.light_source import LightSource
 from ecopv.main_optimization import load_colorchecker
 
+# calculate the maximum values of Delta E* (CIE 2020 standard) perceptual colour difference
+
 n_junc_loop = [1, 2, 3, 4, 5, 6]
 n_peak_loop = [2, 3]
 

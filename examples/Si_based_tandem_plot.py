@@ -149,7 +149,7 @@ if __name__ == "__main__":
             if n_junctions > 0:
                 Eg_guess = np.loadtxt(
                     save_path
-                    + "/champion_pop_{}juncs_{}spec_Si_ERE".format(
+                    + "/champion_pop_{}juncs_{}spec_Si_ERE.txt".format(
                         n_junctions, light_source_name
                     ),
                     ndmin=1,
@@ -498,12 +498,15 @@ if __name__ == "__main__":
     ax2.text(6, 1.71, r"2J cell - top cell $E_g$")
     ax2.text(6, 1.965, r"3J cell - top cell $E_g$")
     ax.set_ylim(18,)
+
+    ax.set_title('(a)', loc='left')
+    ax2.set_title('(b)', loc='left')
     ax2.set_ylim(1.35,)
 
     apply_formatting(ax, color_labels=eff_xr.color.data)
     apply_formatting(ax2, color_labels=eff_xr.color.data)
 
-    rgb_colors = sRGB_color_list(order="sorted", include_black=True)
+    rgb_colors = sRGB_color_list(order="sorted", include_black=False)
     add_colour_patches(ax, patch_width, eff_xr.color.data, rgb_colors,
                        color_coords='rgb')
     add_colour_patches(ax2, patch_width, eff_xr.color.data, rgb_colors,

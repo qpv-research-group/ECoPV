@@ -283,6 +283,9 @@ def getPmax(
 
     if type(rad_eff) == float or type(rad_eff) == int:
         rad_eff = np.full_like(egs, rad_eff, dtype=float)
+    elif len(rad_eff) == 0:
+        rad_eff = np.full_like(egs, 1, dtype=float)
+
 
     db_cell_calculation = {
         'perfect_R': db_cell_calculation_perfectR,

@@ -190,13 +190,10 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         plot=False,
                         power_in=light_source.power_density,
-                        return_archipelagos=True
                     )
 
                     champion_effs = result["champion_eff"]
                     champion_pops = result["champion_pop"]
-
-                    final_populations = result["archipelagos"]
 
                     champion_effs_array[i1, j1, poss_colors] = champion_effs
 
@@ -236,22 +233,6 @@ if __name__ == "__main__":
                         + str(base)
                         + "_spd.txt",
                         champion_pops,
-                    )
-                    np.save(
-                        "results/final_pop_Y_"
-                        + color_suff[j1]
-                        + "_"
-                        + R_type
-                        + str(n_peaks)
-                        + "_"
-                        + str(n_junctions)
-                        + "_"
-                        + str(fixed_height)
-                        + str(max_height)
-                        + "_"
-                        + str(base)
-                        + "_spd.npy",
-                        final_populations,
                     )
 
                 else:
@@ -383,10 +364,10 @@ if __name__ == "__main__":
     ax1.set_xlim(-0.03, 1)
     ax1.set_ylim(23, 58)
 
-    ax4.legend(title="Junctions:", bbox_to_anchor=(-.05, -1.7), loc=(0, 0), ncol=3)#, frameon=False)
+    ax4.legend(title="Junctions:", bbox_to_anchor=(-.05, -1.2), loc=(0, 0), ncol=3)#, frameon=False)
     ax4.set_xlim(-2, -1)
 
-    ax4_b.legend(title="Colour:", bbox_to_anchor=(0.45, -1.7), loc=(0, 0), ncol=2)#, frameon=False)
+    ax4_b.legend(title="Colour:", bbox_to_anchor=(0.45, -1.2), loc=(0, 0), ncol=2)#, frameon=False)
     ax4.axis('off')
     ax4_b.axis('off')
 
@@ -429,6 +410,9 @@ if __name__ == "__main__":
     ax2.set_ylabel("Normalized efficiency")
     ax2.set_xlim(-0.03, 1)
     ax2.set_ylim(0.64, 1.02)
+
+    ax1.set_title('(a)', loc='left')
+    ax2.set_title('(b)', loc='left')
 
     # ax2.legend(title="Junctions:", bbox_to_anchor=(1.22, 0.8), frameon=False)
     # plt.tight_layout()

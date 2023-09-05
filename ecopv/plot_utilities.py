@@ -6,6 +6,7 @@ import numpy as np
 from typing import Sequence
 import matplotlib.pyplot as plt
 
+from colour import wavelength_to_XYZ
 from colormath.color_objects import sRGBColor, XYZColor
 from colormath.color_conversions import convert_color
 import xarray as xr
@@ -237,7 +238,8 @@ def sRGB_color_list(order="sorted", include_black=False):
     for i1, XYZ in enumerate(XYZ_list):
         color_xyz_t = XYZColor(*XYZ)
         color_srgb_t = convert_color(color_xyz_t, sRGBColor,
-                                     target_illuminant="d65")#.get_value_tuple()
+                                     target_illuminant="d65"
+                                     )#.get_value_tuple()
         rgb[i1] = [
             color_srgb_t.clamped_rgb_r,
             color_srgb_t.clamped_rgb_g,
@@ -249,3 +251,64 @@ def sRGB_color_list(order="sorted", include_black=False):
 
     # else:
     return rgb
+
+def wl_gamut_plot(ax, xg, yg):
+    label_wls = np.arange(460, 660, 20)
+
+    # XYZlab = wavelength_to_XYZ(label_wls)
+
+    # sumXYZlab = np.sum(XYZlab, axis=1)
+
+    # xgl = XYZlab[:, 0] / sumXYZlab
+    # ygl = XYZlab[:, 1] / sumXYZlab
+
+    tick_orig = np.zeros((len(label_wls), 2))
+    tick_dir = np.zeros((len(label_wls), 2))
+    # create ticks
+    for m1, lwl in enumerate(label_wls):
+        p0 = wavelength_to_XYZ(lwl)
+        p1 = wavelength_to_XYZ(lwl - 1)
+        p2 = wavelength_to_XYZ(lwl + 1)
+
+        p0 = p0 / np.sum(p0)
+        p1 = p1 / np.sum(p1)
+        p2 = p2 / np.sum(p2)
+
+        m = np.array([p2[0] - p1[0], p2[1] - p1[1]])
+        mp = np.array([-m[1], m[0]])
+        mp = mp / np.linalg.norm(mp)
+        # b = p1[1] + (1/m) * p1[0]
+
+        tick_orig[m1] = p0[:2]
+        tick_dir[m1] = p0[:2] + 0.02 * mp
+
+    ax.set_aspect("equal")
+
+    ax.plot(xg, yg, "k")
+    ax.plot([xg[0], xg[-1]], [yg[0], yg[-1]], "k")
+
+    for m1, lwl in enumerate(label_wls):
+        ax.plot(
+            [tick_orig[m1, 0], tick_dir[m1, 0]],
+            [tick_orig[m1, 1], tick_dir[m1, 1]],
+            "-k",
+        )
+
+        if lwl > 520:
+            ax.text(*tick_dir[m1], str(lwl), rotation=35)
+
+        elif lwl == 520:
+            ax.text(*tick_dir[m1], str(lwl), horizontalalignment="center")
+
+        else:
+            ax.text(
+                *tick_dir[m1],
+                str(lwl),
+                horizontalalignment="right",
+                verticalalignment="center"
+            )
+
+    ax.set_xlim(-0.09, 0.85)
+    ax.set_ylim(-0.07, 0.9)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")

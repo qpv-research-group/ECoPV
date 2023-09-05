@@ -6,13 +6,11 @@ inds = [12, 14, 16, 10, 20]
 from ecopv.main_optimization import (
     load_colorchecker,
     multiple_color_cells,
-    cell_optimization,
 )
-from ecopv.spectrum_functions import gen_spectrum_ndip
+
 import numpy as np
 from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
-import pygmo as pg
 
 from os import path
 import pandas as pd
@@ -84,7 +82,7 @@ photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 loop_n = 0
 
-n_tests = 10
+n_tests = 20
 
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
@@ -115,7 +113,7 @@ if __name__ == "__main__":
                     + R_type
                     + str(n_peaks)
                     + "_"  + str(j01_method)
-                    + str(n_junctions) + f"conv_{k1}_ESI4.txt"
+                    + str(n_junctions) + f"conv_{k1}.txt"
                 )
 
                 if not path.exists(save_loc) or force_rerun:
@@ -158,7 +156,7 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}_ESI4.txt",
+                        + str(n_junctions) + f"conv_{k1}.txt",
                         champion_effs,
                     )
                     np.savetxt(
@@ -166,7 +164,7 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}_ESI4.txt",
+                        + str(n_junctions) + f"conv_{k1}.txt",
                         champion_pops,
                     )
 
@@ -177,14 +175,14 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}_ESI4.txt",
+                        + str(n_junctions) + f"conv_{k1}.txt",
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}_ESI4.txt",
+                        + str(n_junctions) + f"conv_{k1}.txt",
                     )
 
                     champion_bandgaps = champion_pops[:, -n_junctions:]
@@ -251,3 +249,5 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
+
+    print(np.max(std_per_col_junc, axis=2))

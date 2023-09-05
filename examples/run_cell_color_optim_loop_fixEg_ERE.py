@@ -88,7 +88,7 @@ photon_flux_color = photon_flux_cell[
     :, np.all((photon_flux_cell[0] >= 380, photon_flux_cell[0] <= 780), axis=0)
 ]
 
-shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
+shapes = ["+", "o", "^"]
 linetypes = ['-', '--']
 
 loop_n = 0
@@ -148,7 +148,7 @@ if __name__ == "__main__":
             if n_junctions > 0:
                 Eg_guess = np.loadtxt(
                     save_path
-                    + "/champion_pop_{}juncs_{}spec_Si_ERE".format(
+                    + "/champion_pop_{}juncs_{}spec_Si_ERE.txt".format(
                         n_junctions, light_source_name
                     ),
                     ndmin=1,
@@ -207,15 +207,12 @@ if __name__ == "__main__":
                         fixed_bandgaps=fixed_bandgaps,
                         plot=False,
                         power_in=light_source.power_density,
-                        return_archipelagos=True,
                         j01_method=j01_method,
                         rad_eff=rad_eff_int,
                     )
 
                     champion_effs = result["champion_eff"]
                     champion_pops = result["champion_pop"]
-
-                    final_populations = result["archipelagos"]
 
                     np.savetxt(
                         "results/champion_eff_"
@@ -244,20 +241,6 @@ if __name__ == "__main__":
                         + str(base)
                         + "_Si_ERE.txt",
                         champion_pops,
-                    )
-                    np.save(
-                        "results/final_pop_"
-                        + R_type
-                        + str(n_peaks)
-                        + "_"
-                        + str(n_junctions)
-                        + "_"
-                        + str(fixed_height)
-                        + str(max_height)
-                        + "_"
-                        + str(base)
-                        + "_3J_spd.npy",
-                        final_populations,
                     )
 
                     max_effs[i1] = champion_effs

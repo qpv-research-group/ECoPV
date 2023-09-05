@@ -35,10 +35,6 @@ n_peaks = 2  # number of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker colors
 
-single_junction_data = np.loadtxt(os.path.join(os.path.dirname(os.path.dirname(
-    __file__)), 'ecopv', 'data',
-                   'paper_colors.csv'), skiprows=1, delimiter=',',
-    usecols=np.arange(2,10))
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
 photon_flux_cell = np.array(
@@ -96,8 +92,6 @@ if __name__ == "__main__":
         linestyle="none",
     )
 
-    plt.plot(color_names, single_junction_data[:,3],
-             marker=shapes[1], mfc='none', linestyle='none')
 
     plt.xticks(rotation=45)
     plt.legend()

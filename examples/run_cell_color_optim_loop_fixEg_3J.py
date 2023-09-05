@@ -95,41 +95,6 @@ fixed_height_loop = [True]
 fixed_bandgaps = [1.90, 1.44, 0.67]
 
 
-for n_junctions in n_junc_loop:
-
-    if n_junctions > 0:
-
-        save_loc = save_path + "/champion_pop_{}juncs_{}spec_3J.txt".format(
-            n_junctions, light_source_name
-        )
-
-        if not path.exists(save_loc) or force_rerun:
-
-            p_init = cell_optimization(
-                n_junctions,
-                photon_flux_cell,
-                power_in=light_source.power_density,
-                eta_ext=1,
-                fixed_bandgaps=fixed_bandgaps,
-            )
-
-            prob = pg.problem(p_init)
-            algo = pg.algorithm(
-                pg.de(
-                    gen=1000,
-                    F=1,
-                    CR=1,
-                )
-            )
-
-            pop = pg.population(prob, 20 * n_junctions)
-            pop = algo.evolve(pop)
-
-            champion_pop = np.sort(pop.champion_x)
-
-            np.savetxt(save_loc, champion_pop)
-
-
 if __name__ == "__main__":
     # Need this __main__ construction because otherwise the parallel running of the different islands (n_trials) may throw an error
 
@@ -140,17 +105,7 @@ if __name__ == "__main__":
     for n_peaks in n_peak_loop:
         for i1, n_junctions in enumerate(n_junc_loop):
 
-            if n_junctions > 0:
-                Eg_guess = np.loadtxt(
-                    save_path
-                    + "/champion_pop_{}juncs_{}spec_3J.txt".format(
-                        n_junctions, light_source_name
-                    ),
-                    ndmin=1,
-                )
-
-            else:
-                Eg_guess = None
+            Eg_guess = None
 
             for fixed_height in fixed_height_loop:
 
@@ -165,7 +120,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_3J_spd.txt"
+                    + "_3J.txt"
                 )
 
                 if not path.exists(save_name) or force_rerun:
@@ -196,13 +151,11 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         fixed_bandgaps=fixed_bandgaps,
                         plot=False,
-                        return_archipelagos=True
+                        return_archipelagos=False
                     )
 
                     champion_effs = result["champion_eff"]
                     champion_pops = result["champion_pop"]
-
-                    final_populations = result["archipelagos"]
 
                     np.savetxt(
                         "results/champion_eff_"
@@ -215,7 +168,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_3J_spd.txt",
+                        + "_3J.txt",
                         champion_effs,
                     )
                     np.savetxt(
@@ -229,22 +182,8 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_3J_spd.txt",
+                        + "_3J.txt",
                         champion_pops,
-                    )
-                    np.save(
-                        "results/final_pop_"
-                        + R_type
-                        + str(n_peaks)
-                        + "_"
-                        + str(n_junctions)
-                        + "_"
-                        + str(fixed_height)
-                        + str(max_height)
-                        + "_"
-                        + str(base)
-                        + "_3J_spd.npy",
-                        final_populations,
                     )
 
                     max_effs[i1] = champion_effs
@@ -267,7 +206,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_3J_spd.txt"
+                        + "_3J.txt"
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
@@ -280,7 +219,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_3J_spd.txt"
+                        + "_3J.txt"
                     )
 
                     max_effs[i1] = champion_effs
@@ -289,102 +228,6 @@ if __name__ == "__main__":
                         # best_Eg[i1, l1] = champion_pops[l1, -n_junctions:] if n_junctions > 0 else fixed_bandgaps
                         champion_pop_array[i1, l1] = champion_pops[l1]
 
-    # unconst_1j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
-    #                     1) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
-    # unconst_2j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
-    #                     2) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
-    # unconst_3j = np.loadtxt("results/champion_eff_" + R_type + str(2) + '_' + str(
-    #     3) + '_' + 'True' + str(max_height) + '_' + str(base) + '.txt')
-    #
-    # unconst = [unconst_1j, unconst_2j, unconst_3j]
-    #
-    # black_cell_eff = np.array([33.8, 45.9, 51.8, 55.5, 57.8, 59.7])
-    # unconst_xr = []
-    #
-    # for k1, unc in enumerate(unconst):
-    #     eff_xr_col = xr.DataArray(data=unc[:18], dims=['color'],
-    #                               coords={'color': Y_cols})
-    #
-    #     eff_xr_col = eff_xr_col.sortby('color', ascending=False)
-    #     eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
-    #
-    #     eff_xr_bw = xr.DataArray(data=unc[18:].tolist() + [black_cell_eff[k1]], dims=['color'],
-    #                              coords={'color': color_names[18:].tolist() + ['Black']})
-    #
-    #     unconst_xr.append(xr.concat([eff_xr_col, eff_xr_bw], dim='color'))
-    #
-    # pal = sns.color_palette("husl", 3)
-    # shapes = ['o', '+', '^', '.', '*', "v", "s", "x"]
-    #
-    # fig, (ax, ax2) = plt.subplots(1,2, figsize=(10,4))
-    #
-    # black_Eg = [[1.12], [1.72918698, 1.12], [2.0054986, 1.4983, 1.12]]
-    #
-    #
-    # for i1 in n_junc_loop:
-    #     eff_xr_col = xr.DataArray(data=max_effs[i1, :18].flatten(), dims=['color'],
-    #                               coords={'color': Y_cols})
-    #
-    #     eff_xr_col = eff_xr_col.sortby('color', ascending=False)
-    #     eff_xr_col = eff_xr_col.assign_coords(color=col_names.data)
-    #
-    #     black_cell_eff = getPmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval) / 10
-    #     print(black_cell_eff)
-    #
-    #     eff_xr_bw = xr.DataArray(data=max_effs[i1,18:].flatten().tolist() + [black_cell_eff], dims=['color'],
-    #                              coords={'color': color_names[18:].tolist() + ['Black']})
-    #
-    #     eff_xr = xr.concat([eff_xr_col, eff_xr_bw], dim='color')
-    #
-    #     ax.plot(eff_xr.color.data, eff_xr.data, marker=shapes[i1], linestyle='none',
-    #             alpha=0.5, label=str(i1+1) + " junctions", color=pal[i1],
-    #             markersize=7)
-    #
-    #     ax.plot(eff_xr.color.data, unconst_xr[i1], marker=shapes[i1], mfc='none',
-    #              color='k', alpha=0.5, linestyle='none', markersize=5)
-    #
-    #     chp = np.vstack(champion_pop_array[i1]).astype(float)
-    #
-    #     pop_xr_col = xr.DataArray(data=chp[:18], dims=['color', 'x'],
-    #                             coords={'color': Y_cols})
-    #
-    #     pop_xr_col = pop_xr_col.sortby('color', ascending=False)
-    #     pop_xr_col = pop_xr_col.assign_coords(color=col_names.data)
-    #
-    #     pop_xr_bw = xr.DataArray(
-    #         data=chp[18:],
-    #         dims=['color', 'x'],
-    #         coords={'color': color_names[18:]})
-    #
-    #     pop_xr = xr.concat([pop_xr_col, pop_xr_bw], dim='color')
-    #
-    #     I_arr = np.zeros((len(eff_xr.color.data), i1+1))
-    #
-    #     for l1, lab in enumerate(col_names_all):
-    #         pop = pop_xr.sel(color=lab)
-    #         spec = gen_spectrum_ndip(pop.data, n_peaks, wl_cell)
-    #         Egs = fixed_bandgaps + pop[-i1:].data.tolist() if i1 > 0 else fixed_bandgaps
-    #         Egs = -np.sort(-np.array(Egs))
-    #         _, I_arr[l1] = getIVmax(Egs, (1 - spec) * photon_flux_cell[1], wl_cell, interval)
-    #
-    #     I_arr[-1] = getIVmax(black_Eg[i1], photon_flux_cell[1], wl_cell, interval)[1]
-    #
-    #
-    #
-    #     if i1 ==2 :
-    #         for l1 in range(i1+1):
-    #             ax2.plot(eff_xr.color.data, I_arr[:, l1], marker=shapes[l1], color=pal[l1])
-    #
-    # ax.legend()
-    #
-    # ax.xaxis.set_ticks(ax.get_xticks())
-    # ax.set_xticklabels(eff_xr.color.data, rotation=45, ha='right', rotation_mode='anchor')
-    # ax.set_ylabel("Efficiency (%)")
-    #
-    # plt.tight_layout()
-    # plt.show()
-
-    # plotting for triple junction
 
     black_cell_eff = (
         getPmax(fixed_bandgaps, photon_flux_cell[1], wl_cell, interval,
@@ -520,6 +363,9 @@ if __name__ == "__main__":
     rgb_colors = sRGB_color_list(order="sorted", include_black=True)
     add_colour_patches(ax2, 0.75, eff_xr.color.data, rgb_colors,
                        color_coords='rgb')
+    ax.set_title('(a)', loc='left')
+    ax2.set_title('(b)', loc='left')
+
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.1)
+    plt.subplots_adjust(hspace=0.17)
     plt.show()

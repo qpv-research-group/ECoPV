@@ -213,6 +213,7 @@ def multiple_color_cells(
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
     illuminant: str = "AM1.5g",
+    DE_options: dict = None,
     **kwargs,
 ) -> dict:
 
@@ -257,6 +258,9 @@ def multiple_color_cells(
         colours from the spectrum. Can be "AM1.5g", "D50" or "BB" (5778K black body). Can
         also pass an array of the same length as the spectrum with the spectral power
         density at each wavelength.
+    :param DE_options: dictionary of options to pass to the pygmo2 differential evolution. See pygmo2
+        documentation for details.
+    :param kwargs: additional arguments to pass to color_function_mobj (including rad_eff)
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
             each color), "champion_pop" (the champion population which maximizes the efficiency while staying within the
@@ -351,7 +355,7 @@ def multiple_color_cells(
     while not all_converged:
 
         start = time()
-        print("Add iters:", current_iters)
+        print(f"Not all converged - run {current_iters} more generations:")
 
         for k1 in color_indices:
 
@@ -387,6 +391,7 @@ def multiple_color_cells(
                 fixed_bandgaps=fixed_bandgaps,
                 j01_method=j01_method,
                 seed_pop=seed_population[k1],
+                DE_options=DE_options,
                 **kwargs,
             )
 
@@ -428,7 +433,7 @@ def multiple_color_cells(
             if len(max_eff_acc) > 0:
 
                 print(
-                    color_names[k1], "Max. efficiency:",
+                    color_names[k1], " - max. efficiency:",
                     np.round(np.max(max_eff_acc), 3),
                     # np.round(np.mean(max_eff_acc), 3),
                     # np.round(np.std(max_eff_acc), 6),
@@ -453,10 +458,10 @@ def multiple_color_cells(
                 if delta_eta >= acceptable_eff_change:
                     champion_eff[k1] = ch_eff
                     champion_pop[k1] = ch_pop
-                    print(np.round(delta_eta, 5), "delta eff - New champion efficiency")
+                    print(np.round(delta_eta, 5), "change in efficieny (new champion efficiency)")
 
                 else:
-                    print("No change/worse champion efficiency")
+                    print("No further improvement in champion efficiency")
 
                     if ch_eff < minimum_eff[k1]:
                         print("Minimum efficiency not met - keep trying", ch_pop,
@@ -491,17 +496,16 @@ def multiple_color_cells(
                             plt.xlim(300, 1000)
                             plt.show()
 
-                        print(
-                            "Champion pop:",
-                            champion_pop[k1],
-                            "width limits:",
-                            spectrum_obj.get_bounds(),
-                        )
+                        # print(
+                        #     "Champion pop:",
+                        #     champion_pop[k1],
+                        #     "width limits:",
+                        #     spectrum_obj.get_bounds(),
+                        # )
 
             else:
                 print(
-                    color_names[k1],
-                    "no acceptable populations",
+                    color_names[k1],"- no acceptable populations. Minimum colour deviation: ",
                     np.min(all_fs[:, :, 0]),
                 )
                 best_eta_or_deltaXYZ[k1].append(np.min(all_fs[:, :, 0]))
@@ -512,15 +516,15 @@ def multiple_color_cells(
                     best_col = np.argmin(flat_f[:, 0])
                     champion_pop[k1] = flat_x[best_col]
                     print(
-                        "Cannot reach target color - give up. Minimum color deviation: "
+                        "Cannot reach target color - give up. Minimum colour deviation: "
                         + str(np.round(np.min(flat_f[:, 0]), 5))
                     )
-                    print(
-                        "Champion pop (best color):",
-                        champion_pop[k1],
-                        # "width limits:",
-                        # spectrum_obj.get_bounds(),
-                    )
+                    # print(
+                    #     "Champion pop (best color):",
+                    #     champion_pop[k1],
+                    #     # "width limits:",
+                    #     # spectrum_obj.get_bounds(),
+                    # )
                     conv[k1] = True
 
                     spec = internal_run.spec_func(
@@ -580,7 +584,7 @@ def multiple_color_cells(
     color_Lab_target = [convert_XYZ_to_Lab(x) for x in color_XYZ]
 
     delta_E = [delta_E_CIE2000(x, y) for x, y in zip(color_Lab_found, color_Lab_target)]
-    print("Delta E*:", delta_E, np.max(delta_E))
+    # print("Delta E*:", delta_E, np.max(delta_E))
 
     results = {
             "champion_eff": champion_eff,
@@ -636,8 +640,12 @@ class single_color_cell:
         fixed_bandgaps=None,
         j01_method="perfect_R",
         seed_pop=None,
+        DE_options=None,
         **kwargs
     ):
+
+        if DE_options is None:
+            DE_options = {}
 
         p_init = color_function_mobj(
             n_peaks,
@@ -653,12 +661,15 @@ class single_color_cell:
             j01_method,
             **kwargs
         )
-        # decomposition="bi"))#, preserve_diversity=True, decomposition="bi"))
+
+        F = DE_options.pop('F') if 'F' in DE_options.keys() else 0.5
+        CR = DE_options.pop('CR') if 'CR' in DE_options.keys() else 1
+        preserve_diversity = DE_options.pop('preserve_diversity') if 'preserve_diversity' in DE_options.keys() else True
 
         if archi is None:
 
             udp = pg.problem(p_init)
-            algo = pg.algorithm(pg.moead(gen=gen, CR=1, F=0.5, preserve_diversity=True))
+            algo = pg.algorithm(pg.moead(gen=gen, CR=CR, F=F, preserve_diversity=preserve_diversity, **DE_options))
             archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
 
             if seed_pop is not None:
@@ -696,12 +707,19 @@ class color_optimization_only:
         n_trials=10,
         ftol=1e-6,
         archi=None,
+        DE_options=None, # other arguments for pygmo de
     ):
+
+        if DE_options is None:
+            DE_options = {}
+
+        F = DE_options.pop('F') if 'F' in DE_options.keys() else 0.5
+        CR = DE_options.pop('CR') if 'CR' in DE_options.keys() else 1
 
         p_init = color_optimization(n_peaks, target, illuminant, self.spec_func)
 
         udp = pg.problem(p_init)
-        algo = pg.algorithm(pg.de(gen=gen, CR=1, F=0.5, ftol=ftol))
+        algo = pg.algorithm(pg.de(gen=gen, CR=CR, F=F, ftol=ftol))
 
         if archi is None:
             archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
@@ -900,7 +918,7 @@ class cell_optimization:
         n_juncs: int,
         photon_flux: np.ndarray,
         power_in: float = 1000.0,
-        eta_ext: float = 1.0,
+        eta_ext: list[float] = 1.0,
         fixed_bandgaps: Sequence = [],
         j01_method: str = "no_R",
         Eg_limits: Sequence = None,

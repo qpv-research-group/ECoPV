@@ -1,94 +1,21 @@
-from ecopv.main_optimization import (
-    load_colorchecker,
-    multiple_color_cells,
-    cell_optimization)
-from ecopv.optimization_functions import getIVtandem
-import numpy as np
-from colormath.color_conversions import convert_color
-from colormath.color_objects import xyYColor, XYZColor
+from ecopv.main_optimization import multiple_color_cells
+from colormath.color_objects import xyYColor
 from solcore.light_source import LightSource
-import matplotlib.pyplot as plt
-import pygmo as pg
 from os import path
-from cycler import cycler
 from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 from time import time
 
 from matplotlib import rc
-rc("font", **{"family": "sans-serif",
-              "sans-serif": ["Helvetica"]})
-
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
 # in such a large number of runs, get one or two values which are not converged. Try
 # to avoid this by enforcing a minimum efficiency? A point should always be better than
 # the one diagonally below to the left of it (i.e. x-1, y-1 coordinates).
 
-
-def wl_gamut_plot(ax):
-    label_wls = np.arange(460, 660, 20)
-
-    # XYZlab = wavelength_to_XYZ(label_wls)
-
-    # sumXYZlab = np.sum(XYZlab, axis=1)
-
-    # xgl = XYZlab[:, 0] / sumXYZlab
-    # ygl = XYZlab[:, 1] / sumXYZlab
-
-    tick_orig = np.zeros((len(label_wls), 2))
-    tick_dir = np.zeros((len(label_wls), 2))
-    # create ticks
-    for m1, lwl in enumerate(label_wls):
-        p0 = wavelength_to_XYZ(lwl)
-        p1 = wavelength_to_XYZ(lwl - 1)
-        p2 = wavelength_to_XYZ(lwl + 1)
-
-        p0 = p0 / np.sum(p0)
-        p1 = p1 / np.sum(p1)
-        p2 = p2 / np.sum(p2)
-
-        m = np.array([p2[0] - p1[0], p2[1] - p1[1]])
-        mp = np.array([-m[1], m[0]])
-        mp = mp / np.linalg.norm(mp)
-        # b = p1[1] + (1/m) * p1[0]
-
-        tick_orig[m1] = p0[:2]
-        tick_dir[m1] = p0[:2] + 0.02 * mp
-
-    ax.set_aspect("equal")
-
-    ax.plot(xg, yg, "k")
-    ax.plot([xg[0], xg[-1]], [yg[0], yg[-1]], "k")
-
-    for m1, lwl in enumerate(label_wls):
-        ax.plot(
-            [tick_orig[m1, 0], tick_dir[m1, 0]],
-            [tick_orig[m1, 1], tick_dir[m1, 1]],
-            "-k",
-        )
-
-        if lwl > 520:
-            ax.text(*tick_dir[m1], str(lwl), rotation=35)
-
-        elif lwl == 520:
-            ax.text(*tick_dir[m1], str(lwl), horizontalalignment="center")
-
-        else:
-            ax.text(
-                *tick_dir[m1],
-                str(lwl),
-                horizontalalignment="right",
-                verticalalignment="center"
-            )
-
-    ax.set_xlim(-0.09, 0.85)
-    ax.set_ylim(-0.07, 0.9)
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-
 force_rerun = False
-Ys = [0.25, 0.50, 0.75]
+Ys = [0.25, 0.5, 0.75]
 # Ys = [0.75]
 wl_vis = np.linspace(360, 780, 500)
 
@@ -99,9 +26,6 @@ sumXYZ = np.sum(XYZ, axis=1)
 xg = XYZ[:, 0] / sumXYZ
 yg = XYZ[:, 1] / sumXYZ
 
-# xs = np.arange(np.min(xg), np.max(xg), 0.01)
-# ys = np.arange(np.min(yg), np.max(yg), 0.01)
-
 xs = np.arange(np.min(xg), np.max(xg), 0.02)
 ys = np.arange(np.min(yg), np.max(yg), 0.02)
 
@@ -111,7 +35,6 @@ peak = np.argmax(yg)
 
 left_edge = [xg[:peak], yg[:peak]]
 right_edge = [xg[peak:], yg[peak:]]
-
 
 # now check if the points are inside the gamut defined by the spectral locus
 
@@ -134,15 +57,7 @@ for j, yc in enumerate(ys):
     above = yc > slope * xs + c
     is_inside[:, j] = np.all((above, is_inside[:, j]), axis=0)
 
-# plt.figure()
-# plt.plot(xg, yg)
-# for j1, x in enumerate(xs):
-#     for k1, y in enumerate(ys):
-#         if is_inside[j1, k1]:
-#             plt.plot(x, y, "o", color="black")
-#
-# plt.show()
-print("Inside gamut:", np.sum(is_inside))
+print("Number of points inside gamut:", np.sum(is_inside))
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color
 # error will be (very rough estimate!) ~ 0.001.
@@ -200,9 +115,11 @@ loop_n = 0
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
-
 # fixed_bandgaps = [1.90, 1.44, 0.67]
 fixed_bandgaps = [1.12]
+
+label_top = ["(a) ", "(b) ", "(c) "]
+label_bottom = ["(d) ", "(e) ", "(f) "]
 
 if __name__ == "__main__":
     start = time()
@@ -216,26 +133,26 @@ if __name__ == "__main__":
     for i1, Y in enumerate(Ys):
 
         if os.path.exists(
-            save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
+            save_path + "/pop_gamut_Y_{}_{}_{}_ERE.npy".format(Y, n_junctions, "Si")
         ) and not force_rerun:
             print("Load existing result")
 
             pop_array = np.load(
-                save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
+                save_path + "/pop_gamut_Y_{}_{}_{}_ERE.npy".format(Y, n_junctions, "Si")
             )
             eff_array = np.load(
-                save_path + "/eff_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si")
+                save_path + "/eff_gamut_Y_{}_{}_{}_ERE.npy".format(Y, n_junctions, "Si")
             )
 
         else:
-            col_possible_str = save_path + "/possible_colours_Y_{}_rough.txt".format(Y)
+            col_possible_str = save_path + "/possible_colours_Y_{}.txt".format(Y)
 
             print("Found existing file for possible colours")
             is_possible = np.loadtxt(col_possible_str)
             print("Possible colours:", np.sum(is_possible))
 
             best_population = np.load(
-                save_path + "/possible_colours_Y_{}_populations_rough.npy".format(
+                save_path + "/possible_colours_Y_{}_populations.npy".format(
                 Y))
             # print(is_possible)
             eff_array = np.zeros((len(xs), len(ys)))
@@ -302,11 +219,11 @@ if __name__ == "__main__":
             print("sum:", np.sum(is_possible))
 
             np.save(
-                save_path + "/pop_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si"),
+                save_path + "/pop_gamut_Y_{}_{}_{}_ERE.npy".format(Y, n_junctions, "Si"),
                 pop_array,
             )
             np.save(
-                save_path + "/eff_gamut_Y_{}_{}_{}_rough_ERE.npy".format(Y, n_junctions, "Si"),
+                save_path + "/eff_gamut_Y_{}_{}_{}_ERE.npy".format(Y, n_junctions, "Si"),
                 eff_array,
             )
 
@@ -325,7 +242,7 @@ if __name__ == "__main__":
         s_i_RGB[s_i_RGB > 1] = 1
 
         axs[i1].set_facecolor(s_i_RGB)
-        wl_gamut_plot(axs[i1])
+        wl_gamut_plot(axs[i1], xg, yg)
 
 
         for j1, x in enumerate(xs):
@@ -391,22 +308,19 @@ if __name__ == "__main__":
                     weight="bold")
 
         axs[i1].clabel(cs, inline=1, fontsize=12, manual=label_loc)
-        axs[i1].set_title("Y = " + str(Y))
+        axs[i1].set_title(label_top[i1] + "Y = " + str(Y), loc="left")
         axs[i1].yaxis.set_minor_locator(tck.AutoMinorLocator())
         axs[i1].xaxis.set_minor_locator(tck.AutoMinorLocator())
         axs[i1].grid(axis="both", color="0.4", alpha=0.5)
         axs[i1].tick_params(direction="in", which="both", top=True, right=True)
         axs[i1].set_axisbelow(True)
 
-        # plt.figure()
-        # plt.imshow(eff_array.T, vmin=np.min(eff_array[eff_array > 0]), origin='lower')
-        # plt.colorbar()
-        # plt.show()
-
-        wl_gamut_plot(axs2[i1])
+        wl_gamut_plot(axs2[i1], xg, yg)
         print(np.nanmin(Egs), np.nanmax(Egs))
         c = axs2[i1].pcolor(xs, ys, Egs.T, vmin=1.54, vmax=1.75, cmap="inferno_r")
         axs3[i1].axis("off")
+
+        axs2[i1].set_title(label_bottom[i1], loc="left")
 
         if i1 == 1:
             fig.colorbar(c, ax=axs3[i1], orientation="horizontal", fraction=1,

@@ -6,6 +6,9 @@ from ecopv.plot_utilities import *
 from colour import wavelength_to_XYZ
 import os
 
+# Calculate which colours are possible to produce using AM1.5G for the given values of Y (luminance).
+# Pre-calculating this saves time when running the colour + cell optimization.
+
 force_rerun = False
 
 Ys = [0.25, 0.5, 0.75]
@@ -22,8 +25,8 @@ yg = XYZ[:, 1] / sumXYZ
 # xs = np.arange(np.min(xg), np.max(xg), 0.01)
 # ys = np.arange(np.min(yg), np.max(yg), 0.01)
 
-xs = np.arange(np.min(xg), np.max(xg), 0.01)
-ys = np.arange(np.min(yg), np.max(yg), 0.01)
+xs = np.arange(np.min(xg), np.max(xg), 0.02)
+ys = np.arange(np.min(yg), np.max(yg), 0.02)
 
 is_inside = np.full((len(xs), len(ys)), False)
 
@@ -56,9 +59,6 @@ for j, yc in enumerate(ys):
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
-
-acceptable_eff_change = 1e-3  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
-# col_thresh and efficiency change is less than this.
 
 n_trials = 10  # number of islands which will run concurrently in parallel
 interval = 0.1  # wavelength interval (in nm)
@@ -96,13 +96,10 @@ light_source = LightSource(
 
 spectral_power_density = np.array(light_source.spectrum(wl_col))
 
-shapes = ["+", "o", "^", ".", "*", "v", "s", "x"]
-
 loop_n = 0
 
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
-
 
 if __name__ == "__main__":
     # Need this __main__ construction because otherwise the parallel running of the different islands (n_trials) may throw an error
@@ -157,12 +154,12 @@ if __name__ == "__main__":
                                           1000)
 
                         if result[0] > col_thresh:
-                            print(counter, j1, k1, "Cannot make colour", result)
+                            print(counter, j1, k1, "Cannot make colour")
                             is_possible[j1, k1] = False
                             deltaE[j1, k1] = result[0]
 
                         else:
-                            print(counter, j1, k1, "Can make colour", result)
+                            print(counter, j1, k1, "Can make colour")
                             deltaE[j1, k1] = result[0]
                             best_population[j1, k1] = result[1]
 
@@ -175,8 +172,6 @@ if __name__ == "__main__":
             np.save(save_path + "/possible_colours_Y_{}_populations.npy".format(
                 Y), best_population
             )
-
-        print("sum:", np.sum(is_possible))
 
         width = np.diff(xs)[0]
         height = np.diff(ys)[0]
@@ -268,7 +263,6 @@ if __name__ == "__main__":
         ax.xaxis.set_minor_locator(tck.AutoMinorLocator())
         ax.grid(axis="both", color="0.4", alpha=0.5)
         ax.tick_params(direction="in", which="both", top=True, right=True)
-        # ax.set_axisbelow(True)
 
     plt.tight_layout()
     plt.show()
