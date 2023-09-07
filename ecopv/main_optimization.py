@@ -185,7 +185,6 @@ def load_colorchecker(output_coords: str = "XYZ",
             raise ValueError("output_coords must be one of xyY, XYZ, or Lab")
 
 
-
 def multiple_color_cells(
     color_XYZ: np.ndarray,
     color_names: Sequence[str],
@@ -196,9 +195,9 @@ def multiple_color_cells(
     R_type: str = "sharp",
     fixed_height: bool = True,
     n_trials: int = 10,
-    initial_iters: int = 100,
-    add_iters: int = 100,
+    iters_multiplier: int = 50,
     col_thresh: float = 0.004,
+    col_cutoff: float = None,
     acceptable_eff_change=1e-4,
     max_trials_col: int = None,
     base: float = 0,
@@ -230,9 +229,11 @@ def multiple_color_cells(
     :param R_type: type of spectrum, "sharp" or "gauss" currently implemented
     :param fixed_height: whether to fix the height of the reflection peaks to max_height (True) or allow it to vary (False)
     :param n_trials: number of islands (separate threads) which will run concurrently
-    :param initial_iters: number of evolutions of the initial population
-    :param add_iters: number of additional evolutions per optimization loop
+    :param iters: number of additional evolutions per optimization loop
     :param col_thresh: maximum acceptable value for deltaXYZ (maximum fractional error in X, Y, Z coordinates)
+    :param col_cutoff: if the color error is larger than this, color_function_mobj will set the efficiency to zero to
+            restrict the Pareto front to only colors with colour error smaller than col_cutoff, rather than keeping the
+            full Pareto front up to a deltaXYZ of 1.
     :param acceptable_eff_change: maximum acceptable change in efficiency between optimization loops; if the change is smaller,
             the optimization ends
     :param max_trials_col: maximum number of evolutions to try to find a color within col_thresh before giving up.
@@ -272,19 +273,22 @@ def multiple_color_cells(
         n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
-    pop_size = 10*n_params if pop_size is None else pop_size
+    pop_size = 20*n_params if pop_size is None else pop_size
 
     # cmf = load_cmf(photon_flux[0])
     interval = np.diff(photon_flux[0])[0]
 
     if max_trials_col is None:
-        max_trials_col = 5 * initial_iters
+        max_trials_col = 1000
 
     if minimum_eff is None:
         minimum_eff = np.zeros(len(color_XYZ))
 
     if seed_population is None:
         seed_population = [None] * len(color_XYZ)
+
+    if col_cutoff is None:
+        col_cutoff = 1 # keep the whole Pareto front
 
     wl_visible = photon_flux[0][np.all([photon_flux[0] >= 380, photon_flux[0] <=
                                         730], axis=0)]
@@ -344,9 +348,11 @@ def multiple_color_cells(
 
     color_XYZ_found = [None] * len(color_XYZ)
 
+    to_reset = [None] * len(color_XYZ)
+
     iters_needed = np.zeros(len(color_XYZ))
 
-    current_iters = initial_iters
+    current_iters = iters_multiplier*n_params
 
     best_eta_or_deltaXYZ = [[] for _ in range(len(color_XYZ))]
 
@@ -375,6 +381,7 @@ def multiple_color_cells(
 
             archi = internal_run.run(
                 color_XYZ[k1],
+                col_cutoff,
                 photon_flux,
                 illuminant,
                 n_peaks,
@@ -392,10 +399,9 @@ def multiple_color_cells(
                 j01_method=j01_method,
                 seed_pop=seed_population[k1],
                 DE_options=DE_options,
+                to_reset=to_reset[k1],
                 **kwargs,
             )
-
-            archipelagos[k1] = archi
 
             all_fs = np.stack(
                 [archi[j1].get_population().get_f() for j1 in range(n_trials)]
@@ -412,6 +418,7 @@ def multiple_color_cells(
                     for i1, x in enumerate(all_fs)
                 ]
             )
+
             best_acc_eff = np.array(
                 [
                     -np.min(x[sln[i1], 1]) if len(x[sln[i1]]) > 0 else 0
@@ -427,16 +434,30 @@ def multiple_color_cells(
                 ]
             )
 
+            low_to_high = np.argsort(best_acc_eff)
+            to_reset[k1] = low_to_high[:(n_trials // 5)]
+            # reset 1/5th of populations
+
             max_eff_acc = best_acc_eff[best_acc_eff > 0] * 100
             best_acc_pop = best_acc_pop[best_acc_eff > 0]
+
+            print('Island with best pop:', np.argmax(best_acc_eff))
+
+            # if iters_needed[k1] == current_iters:
+            #     print("Setting all populations to best")
+            #     isl_best_pop = archi[np.argmax(best_acc_eff)].get_population()
+            #     for isl in archi:
+            #         isl.set_population(isl_best_pop)
+
+
+            archipelagos[k1] = archi
 
             if len(max_eff_acc) > 0:
 
                 print(
-                    color_names[k1], " - max. efficiency:",
+                    color_names[k1], "- max. efficiency:",
                     np.round(np.max(max_eff_acc), 3),
-                    # np.round(np.mean(max_eff_acc), 3),
-                    # np.round(np.std(max_eff_acc), 6),
+                    np.sum(sln),
                 )
 
                 ch_eff = np.max(max_eff_acc)
@@ -445,6 +466,8 @@ def multiple_color_cells(
                 best_eta_or_deltaXYZ[k1].append(ch_eff)
 
                 ch_pop = best_acc_pop[ch_eff_ind]
+
+                print(ch_pop)
 
                 mean_sd_effs[k1] = [
                     np.min(max_eff_acc),
@@ -458,10 +481,10 @@ def multiple_color_cells(
                 if delta_eta >= acceptable_eff_change:
                     champion_eff[k1] = ch_eff
                     champion_pop[k1] = ch_pop
-                    print(np.round(delta_eta, 5), "change in efficieny (new champion efficiency)")
+                    print(np.round(delta_eta, 5), "change in efficiency (new champion efficiency)")
 
                 else:
-                    print("No further improvement in champion efficiency")
+                    print("No further improvement in champion efficiency", np.round(ch_pop, 3))
 
                     if ch_eff < minimum_eff[k1]:
                         print("Minimum efficiency not met - keep trying", ch_pop,
@@ -570,10 +593,6 @@ def multiple_color_cells(
             print("All colors are converged")
             all_converged = True
 
-        else:
-            # n_iters = n_iters + 200
-            print("Running for another", add_iters, "iterations")
-            current_iters = add_iters
 
     print("TOTAL TIME:", time() - start_time)
     champion_pop = np.array(
@@ -626,6 +645,7 @@ class single_color_cell:
     def run(
         self,
         target,
+        col_cutoff,
         photon_flux,
         illuminant,
         n_peaks=2,
@@ -633,7 +653,7 @@ class single_color_cell:
         popsize=80,
         gen=1000,
         n_trials=10,
-        power_in=1000,
+        power_in=1000.0,
         spectrum_bounds=None, # spectrum_bounds which will be passed to color_function_mobj
         Eg_black=None,
         archi=None,
@@ -641,6 +661,8 @@ class single_color_cell:
         j01_method="perfect_R",
         seed_pop=None,
         DE_options=None,
+        # reinsert_optimal_Eg=True,
+        to_reset=None,
         **kwargs
     ):
 
@@ -651,6 +673,7 @@ class single_color_cell:
             n_peaks,
             n_gaps,
             target,
+            col_cutoff,
             photon_flux,
             illuminant,
             self.spec_func,
@@ -662,15 +685,14 @@ class single_color_cell:
             **kwargs
         )
 
-        F = DE_options.pop('F') if 'F' in DE_options.keys() else 0.5
+        F = DE_options.pop('F') if 'F' in DE_options.keys() else 1
         CR = DE_options.pop('CR') if 'CR' in DE_options.keys() else 1
         preserve_diversity = DE_options.pop('preserve_diversity') if 'preserve_diversity' in DE_options.keys() else True
 
         if archi is None:
-
             udp = pg.problem(p_init)
             algo = pg.algorithm(pg.moead(gen=gen, CR=CR, F=F, preserve_diversity=preserve_diversity, **DE_options))
-            archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
+            archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)#, t=pg.fully_connected())
 
             if seed_pop is not None:
 
@@ -685,7 +707,44 @@ class single_color_cell:
 
                     isl.set_population(population)
 
+        # if reinsert_optimal_Eg:
+        #     # re-set bandgaps to black cell optimal Eg while keeping colour peaks the same
+        #     # for some members of the population
+        #
+        #     for isl in archi:
+        #
+        #         population = isl.get_population()
+        #
+        #         reset = np.random.randint(0, popsize, size=popsize//20)
+        #
+        #         # # best_col_ind = np.argmin(isl.get_population().get_f()[:, 0])
+        #         # best_col_ind = np.where(isl.get_population().get_f()[:, 0] > 0.004)[0][-1]
+        #         # # print('Current best', population.get_f()[best_col_ind -1])
+        #         # current_x = population.get_x()[best_col_ind]
+        #         # current_x[-n_gaps:] = Eg_black
+        #         #
+        #         # population.set_x(best_col_ind, current_x)
+        #         #
+        #         # print(population.get_f()[best_col_ind])
+        #         # print(population.get_x()[best_col_ind])
+        #
+        #         for i in reset:
+        #             current_x = population.get_x()[i]
+        #             current_x[-n_gaps:] = Eg_black
+        #
+        #             population.set_x(i, current_x)
+        #
+        #         isl.set_population(population)
+
+        if to_reset is not None:
+            udp = pg.problem(p_init)
+            for isl_ind in to_reset:
+                print("reset island", isl_ind)
+                archi[isl_ind].set_population(pg.population(prob=udp, size=popsize))
+
         archi.evolve()
+
+        # print(archi.get_migration_log())
 
         archi.wait()
 
@@ -713,7 +772,7 @@ class color_optimization_only:
         if DE_options is None:
             DE_options = {}
 
-        F = DE_options.pop('F') if 'F' in DE_options.keys() else 0.5
+        F = DE_options.pop('F') if 'F' in DE_options.keys() else 1
         CR = DE_options.pop('CR') if 'CR' in DE_options.keys() else 1
 
         p_init = color_optimization(n_peaks, target, illuminant, self.spec_func)
@@ -739,6 +798,7 @@ class color_function_mobj:
         n_peaks,
         n_juncs,
         tg,
+        col_cutoff,
         photon_flux,
         illuminant,
         spec_func=gen_spectrum_ndip,
@@ -757,6 +817,7 @@ class color_function_mobj:
         self.n_peaks = n_peaks
         self.n_juncs = n_juncs
         self.target_color = tg
+        self.cutoff = col_cutoff
         self.c_bounds = [380, 730]
         self.spec_func = spec_func
         self.dim = len(spectrum_bounds[0]) + n_juncs
@@ -822,8 +883,8 @@ class color_function_mobj:
                       rad_eff=self.rad_eff,
                       ) / self.incident_power
 
-        # if delta > 0.1:
-        #     eta = 0
+        if delta > self.cutoff:
+            eta = 0
 
         return delta, eta
 
@@ -840,8 +901,8 @@ class color_function_mobj:
             lower_lim = []
             upper_lim = []
             for i1 in range(self.n_juncs):
-                lower_lim.append(0.6 * self.Eg_black[i1])
-                upper_lim.append(1.2 * self.Eg_black[i1])
+                lower_lim.append(np.max([0.6 * self.Eg_black[i1], self.Eg_black[i1] - 0.55]))
+                upper_lim.append(np.min([1.2 * self.Eg_black[i1], self.Eg_black[i1] + 0.2]))
 
             Eg_bounds = [lower_lim, upper_lim]
 

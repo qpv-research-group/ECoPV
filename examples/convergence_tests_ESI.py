@@ -2,6 +2,8 @@
 
 # Blue, Red, Magenta, YellowGreen, Neutral 6-5
 inds = [12, 14, 16, 10, 20]
+# inds = [20]
+# inds = [12]
 
 from ecopv.main_optimization import (
     load_colorchecker,
@@ -28,7 +30,7 @@ force_rerun = False
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
 
-acceptable_eff_change = 1e-4  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
+acceptable_eff_change = 1e-3  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
 # col_thresh and efficiency change is less than this.
 
 n_trials = 10  # number of islands which will run concurrently
@@ -40,11 +42,10 @@ wl_cell = np.arange(
 
 single_J_result = pd.read_csv("../ecopv/data/paper_colors.csv")
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
-# every color will run a minimum of initial_iters + add_iters evolutions before ending!
+iters_multiplier = 25  # run iters_multiplier * n_params iterations per batch for each colour until convergence
+# conditions are met
 
-max_trials_col = 3 * add_iters
+max_trials_col = 500
 # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
@@ -60,7 +61,7 @@ max_height = 1
 base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
+n_junc_loop = [6]  # loop through these numbers of junctions
 n_peak_loop = [2]  # loop through these numbers of reflection peaks
 
 linestyles = ['-', '--', '-.', ':']
@@ -82,7 +83,7 @@ photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 loop_n = 0
 
-n_tests = 20
+n_tests = 10
 
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
@@ -96,6 +97,7 @@ if __name__ == "__main__":
         Eg_array = np.zeros((len(n_peak_loop), n_tests, len(color_names), n_junctions))
 
         for i1, n_peaks in enumerate(n_peak_loop):
+            # plt.figure()
 
             for k1 in range(n_tests):
                 # print(f"Trial {k1}")
@@ -113,7 +115,7 @@ if __name__ == "__main__":
                     + R_type
                     + str(n_peaks)
                     + "_"  + str(j01_method)
-                    + str(n_junctions) + f"conv_{k1}.txt"
+                    + str(n_junctions) + f"conv_3_{k1}.txt"
                 )
 
                 if not path.exists(save_loc) or force_rerun:
@@ -131,9 +133,9 @@ if __name__ == "__main__":
                         R_type=R_type,
                         fixed_height=fixed_height,
                         n_trials=n_trials,
-                        initial_iters=initial_iters,
-                        add_iters=add_iters,
+                        iters_multiplier=iters_multiplier,
                         col_thresh=col_thresh,
+                        col_cutoff=1.25*col_thresh,
                         acceptable_eff_change=acceptable_eff_change,
                         max_trials_col=max_trials_col,
                         base=base,
@@ -144,19 +146,24 @@ if __name__ == "__main__":
                         return_archipelagos=True,
                         j01_method=j01_method,
                         illuminant=light_source_name,
+                        DE_options={'realb': 0.5,
+                                    'limit': 1,
+                        #             'neighbours': 100}#,
+                                  #  'decomposition': 'bi'
+                        }
                     )
 
                     champion_effs = result["champion_eff"]
                     champion_pops = result["champion_pop"]
 
-                    # final_populations = result["archipelagos"]
+                    final_pop = result["archipelagos"]
 
                     np.savetxt(
                         "results/champion_eff_"
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}.txt",
+                        + str(n_junctions) + f"conv_3_{k1}.txt",
                         champion_effs,
                     )
                     np.savetxt(
@@ -164,8 +171,16 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}.txt",
+                        + str(n_junctions) + f"conv_3_{k1}.txt",
                         champion_pops,
+                    )
+                    np.save(
+                        "results/final_pop_"
+                        + R_type
+                        + str(n_peaks)
+                        + "_"  + str(j01_method)
+                        + str(n_junctions) + f"conv_3_{k1}.npy",
+                        final_pop,
                     )
 
                 else:
@@ -175,21 +190,49 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}.txt",
+                        + str(n_junctions) + f"conv_3_{k1}.txt",
                     )
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_{k1}.txt",
+                        + str(n_junctions) + f"conv_3_{k1}.txt",
                     )
 
-                    champion_bandgaps = champion_pops[:, -n_junctions:]
+                    final_pop = np.load(
+                        "results/final_pop_"
+                        + R_type
+                        + str(n_peaks)
+                        + "_"  + str(j01_method)
+                        + str(n_junctions) + f"conv_3_{k1}.npy",
+                        allow_pickle=True
+                    )[0]
 
-                Eg_array[i1, k1] = champion_pops[:, -n_junctions:]
+                    # champion_bandgaps = champion_pops[:, -n_junctions:]
+                    #
+
+
+
+                # Eg_array[i1, k1] = champion_pops[:, -n_junctions:]
 
                 eff_array[j1, i1, k1, :] = champion_effs
+
+            #     plt.plot([champion_effs[2]] * n_junctions, champion_pops[2, -n_junctions:], 'x')
+            #
+            # plt.show()
+
+
+                fig, ax_list = plt.subplots(nrows=3, ncols=2, figsize=(8, 6))
+                ax_list = ax_list.flatten()
+                # fig, ax = plt.subplots()
+                # ax_list = [ax]
+
+                for m1 in range(len(color_names)):
+                    for l1 in range(n_trials):
+                        ax_list[m1].plot(final_pop[l1].get_population().get_f()[:, 0], final_pop[l1].get_population().get_f()[:, 1], 'x')
+                    ax_list[m1].set_ylim(-0.6, -0.51)
+                plt.show()
                 # pop_array[i1, k1, :, :] = champion_pops
 
         Eg_min = np.min(Eg_array, axis=1)
@@ -200,6 +243,9 @@ if __name__ == "__main__":
         print(f"{n_junctions} junctions, max range: {Eg_range_max}")
 
     fig, axs = plt.subplots(len(n_junc_loop), len(color_names), figsize=(10, 1.5*len(n_junc_loop)))
+
+    if len(n_junc_loop) == 1:
+        axs = np.array([axs])
 
     max_per_col_junc = np.max(eff_array, axis=2)
     min_per_col_junc = np.min(eff_array, axis=2)
@@ -251,3 +297,25 @@ if __name__ == "__main__":
     plt.show()
 
     print(np.max(std_per_col_junc, axis=2))
+
+    ind_neutral = 0
+
+    islands = final_pop[()][0]
+
+    all_fs = np.vstack(
+        [islands[j1].get_population().get_f() for j1 in range(n_trials)]
+    )
+
+    all_xs = np.vstack(
+        [islands[j1].get_population().get_x() for j1 in range(n_trials)]
+    )
+
+    plt.figure()
+    plt.plot(all_fs[:,1][all_fs[:,0]<0.004], all_xs[:, -1][all_fs[:,0]<0.004], 'x')
+    plt.show()
+
+    plt.figure()
+    plt.plot(all_fs[:,0], all_xs[:, -1], 'x')
+    plt.xlim(0, 0.004)
+    plt.show()
+

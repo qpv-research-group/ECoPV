@@ -261,7 +261,11 @@ for j1, n_junctions in enumerate(n_junc_loop):
         add_colour_patches(axs[j1], patch_width, labels=champion_pops.color.data,
                            color_XYZ=color_list_patches, color_coords='sRGB')
 
-    apply_formatting(axs[j1], color_labels=champion_pops.color.data, n_colors=25)
+        apply_formatting(axs[j1], color_labels=champion_pops.color.data, n_colors=25)
+
+    else:
+        apply_formatting(axs[j1], n_colors=25)
+
     axs[j1].grid(axis='x')
 
 
@@ -586,3 +590,91 @@ add_colour_patches(ax1, patch_width, eff_diff.color.data, color_XYZ_xr.data)
 plt.show()
 
 np.savetxt("results/efficiency_table.csv", table_for_paper, delimiter=",",)
+
+
+
+
+
+
+color_list = sRGB_color_list(order="sorted", include_black=True)
+color_list_patches = sRGB_color_list(order="sorted", include_black=False)
+# color_list = np.insert(color_list, 0, [0,0,0], axis=0)
+
+n_peak_loop = [2]
+n_peaks = 2
+
+fig, axs = plt.subplots(3, 2, figsize=(11.5, 7))
+
+axs = axs.flatten()
+
+for j1, n_junctions in enumerate(n_junc_loop):
+
+    champion_pops = np.loadtxt(
+        "results/champion_pop_"
+        + R_type
+        + str(n_peaks)
+        + "_"
+        + str(n_junctions)
+        + "_"
+        + str(fixed_height)
+        + str(max_height)
+        + "_"
+        + str(base) + "_"  + j01_method + light_source_name
+        + ".txt"
+    )
+
+    # Eg_xr = np.vstack(
+    #     (champion_pops[:, -n_junctions:], black_cell_Eg[n_junctions - 1]),
+    # )
+
+    # ordered = np.append(color_XYZ[:,1], 0).argsort()
+    Eg_values = make_sorted_xr(champion_pops[:, -n_junctions:], color_names,
+                       append_black=black_cell_Eg[n_junctions - 1],
+                             ascending=True)
+
+    # Y_values = np.append(color_XYZ[:,1], 0)[ordered]
+    # Eg_values = Eg_xr[ordered]
+
+    # champion_pops = champion_pops[ordered[1:]]
+
+    champion_pops = make_sorted_xr(champion_pops[:, :-n_junctions], color_names,
+                                   append_black=np.zeros(champion_pops[:,
+                                                         :-n_junctions].shape[1]),
+                                   ascending=True)
+
+
+    axs[j1].plot(Eg_values - black_cell_Eg[n_junctions - 1], '--k', alpha=0.5)
+
+
+
+    if j1 == 0 or j1 == 2 or j1 == 4:
+        axs[j1].set_ylabel("Bandgap (eV)")
+
+    # if j1 % 2 == 1:
+    #     axs[j1].set_yticklabels([])
+    #     axs[j1].tick_params(direction="in", which="both", axis="y", right=False)
+        # f = lambda x: 1240 / x
+        # ax2 = axs[j1].secondary_yaxis("right", functions=(f, f))
+        # ax2.set_yticks([1, 1.5, 2, 3])
+        # ax2.yaxis.set_minor_locator(tck.AutoMinorLocator())
+        # ax2.set_ylabel("Bandgap (eV)")
+
+    if j1 > 3:
+        # axs[j1].set_xlabel(r"$Y$")
+        add_colour_patches(axs[j1], patch_width, labels=champion_pops.color.data,
+                           color_XYZ=color_list_patches, color_coords='sRGB')
+
+        apply_formatting(axs[j1], color_labels=champion_pops.color.data, n_colors=25)
+
+    else:
+        apply_formatting(axs[j1], n_colors=25)
+
+    axs[j1].grid(axis='x')
+
+
+
+plt.tight_layout()
+plt.subplots_adjust(hspace=0.1, wspace=0.15)
+# add_colour_patches(axs[4], patch_width, Eg_xr.color.data, color_XYZ_xr)
+# add_colour_patches(axs[5], patch_width, Eg_xr.color.data, color_XYZ_xr)
+plt.show()

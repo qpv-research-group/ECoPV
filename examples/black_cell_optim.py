@@ -59,6 +59,7 @@ for i1, n_juncs in enumerate(n_junctions):
 
     pop = pg.population(prob, 50 * n_juncs)
     pop = algo.evolve(pop)
+
     print("Optimized efficiency: ", -pop.champion_f[0] * 100)
     print("Optimized bandgaps: ", np.sort(pop.champion_x))
     print("Time taken (s): ", time() - start)

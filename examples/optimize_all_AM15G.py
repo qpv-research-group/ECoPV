@@ -78,7 +78,7 @@ for n_junctions in n_junc_loop:
             photon_flux_cell,
             power_in=light_source.power_density,
             eta_ext=1,
-            Eg_limits=[0.4, 2.35]
+            Eg_limits=[0.55, 2.4]
         )
 
         prob = pg.problem(p_init)
