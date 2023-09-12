@@ -212,6 +212,7 @@ def multiple_color_cells(
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
     illuminant: str = "AM1.5g",
+    reinsert_optimal_Eg: float = 0,
     DE_options: dict = None,
     **kwargs,
 ) -> dict:
@@ -273,7 +274,7 @@ def multiple_color_cells(
         n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
-    pop_size = 20*n_params if pop_size is None else pop_size
+    pop_size = 10*n_params if pop_size is None else pop_size
 
     # cmf = load_cmf(photon_flux[0])
     interval = np.diff(photon_flux[0])[0]
@@ -399,6 +400,7 @@ def multiple_color_cells(
                 j01_method=j01_method,
                 seed_pop=seed_population[k1],
                 DE_options=DE_options,
+                reinsert_optimal_Eg=reinsert_optimal_Eg,
                 to_reset=to_reset[k1],
                 **kwargs,
             )
@@ -436,7 +438,24 @@ def multiple_color_cells(
 
             low_to_high = np.argsort(best_acc_eff)
             to_reset[k1] = low_to_high[:(n_trials // 5)]
-            # reset 1/5th of populations
+            # reset worst 1/5 of populations
+
+            # save best efficiency and population on each iteration
+            # with open(f"{color_names[k1]}_order.txt", "a") as myfile:
+            #     if iters_needed[k1] == current_iters:
+            #         myfile.write("# New trial \n")
+            #     myfile.write(' '.join(map(str, low_to_high)) + " \n")
+            #
+            # with open(f"{color_names[k1]}_efficiency.txt", "a") as myfile:
+            #     if iters_needed[k1] == current_iters:
+            #         myfile.write("# New trial \n")
+            #     myfile.write(' '.join(map(str, best_acc_eff)) + " \n")
+            #
+            # with open(f"{color_names[k1]}_pops.txt", "a") as myfile:
+            #     if iters_needed[k1] == current_iters:
+            #         myfile.write("# New trial \n")
+            #     for pop_list in best_acc_pop:
+            #         myfile.write(' '.join(map(str, pop_list)) + " \n")
 
             max_eff_acc = best_acc_eff[best_acc_eff > 0] * 100
             best_acc_pop = best_acc_pop[best_acc_eff > 0]
@@ -448,7 +467,6 @@ def multiple_color_cells(
             #     isl_best_pop = archi[np.argmax(best_acc_eff)].get_population()
             #     for isl in archi:
             #         isl.set_population(isl_best_pop)
-
 
             archipelagos[k1] = archi
 
@@ -661,7 +679,7 @@ class single_color_cell:
         j01_method="perfect_R",
         seed_pop=None,
         DE_options=None,
-        # reinsert_optimal_Eg=True,
+        reinsert_optimal_Eg=0,
         to_reset=None,
         **kwargs
     ):
@@ -707,34 +725,34 @@ class single_color_cell:
 
                     isl.set_population(population)
 
-        # if reinsert_optimal_Eg:
-        #     # re-set bandgaps to black cell optimal Eg while keeping colour peaks the same
-        #     # for some members of the population
-        #
-        #     for isl in archi:
-        #
-        #         population = isl.get_population()
-        #
-        #         reset = np.random.randint(0, popsize, size=popsize//20)
-        #
-        #         # # best_col_ind = np.argmin(isl.get_population().get_f()[:, 0])
-        #         # best_col_ind = np.where(isl.get_population().get_f()[:, 0] > 0.004)[0][-1]
-        #         # # print('Current best', population.get_f()[best_col_ind -1])
-        #         # current_x = population.get_x()[best_col_ind]
-        #         # current_x[-n_gaps:] = Eg_black
-        #         #
-        #         # population.set_x(best_col_ind, current_x)
-        #         #
-        #         # print(population.get_f()[best_col_ind])
-        #         # print(population.get_x()[best_col_ind])
-        #
-        #         for i in reset:
-        #             current_x = population.get_x()[i]
-        #             current_x[-n_gaps:] = Eg_black
-        #
-        #             population.set_x(i, current_x)
-        #
-        #         isl.set_population(population)
+        if reinsert_optimal_Eg:
+            # re-set bandgaps to black cell optimal Eg while keeping colour peaks the same
+            # for some members of the population
+
+            for isl in archi:
+
+                population = isl.get_population()
+
+                reset = np.random.randint(0, popsize, size=int(popsize*reinsert_optimal_Eg))
+
+                # # best_col_ind = np.argmin(isl.get_population().get_f()[:, 0])
+                # best_col_ind = np.where(isl.get_population().get_f()[:, 0] > 0.004)[0][-1]
+                # # print('Current best', population.get_f()[best_col_ind -1])
+                # current_x = population.get_x()[best_col_ind]
+                # current_x[-n_gaps:] = Eg_black
+                #
+                # population.set_x(best_col_ind, current_x)
+                #
+                # print(population.get_f()[best_col_ind])
+                # print(population.get_x()[best_col_ind])
+
+                for i in reset:
+                    current_x = population.get_x()[i]
+                    current_x[-n_gaps:] = Eg_black
+
+                    population.set_x(i, current_x)
+
+                isl.set_population(population)
 
         if to_reset is not None:
             udp = pg.problem(p_init)
@@ -903,7 +921,7 @@ class color_function_mobj:
             for i1 in range(self.n_juncs):
                 lower_lim.append(np.max([0.6 * self.Eg_black[i1], self.Eg_black[i1] - 0.55]))
                 upper_lim.append(np.min([1.2 * self.Eg_black[i1], self.Eg_black[i1] + 0.2]))
-
+                # upper_lim.append(1.03*self.Eg_black[i1])
             Eg_bounds = [lower_lim, upper_lim]
 
         else:

@@ -1,7 +1,8 @@
 # colours of interest:
 
+# Blue, Red, Magenta, Green, Neutral 8
 # Blue, Red, Green, OrangeYellow, Neutral 8
-inds = [12, 14, 13, 11, 19]
+inds = [12, 14, 13, 11, 20, 19]
 # inds = [20]
 # inds = [12]
 
@@ -83,7 +84,7 @@ photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 loop_n = 0
 
-n_tests = 20
+n_tests = 25
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
@@ -134,7 +135,7 @@ if __name__ == "__main__":
                         n_trials=n_trials,
                         iters_multiplier=iters_multiplier,
                         col_thresh=col_thresh,
-                        col_cutoff=0.05,
+                        col_cutoff=0.1,
                         # col_cutoff=1,
                         acceptable_eff_change=acceptable_eff_change,
                         max_trials_col=max_trials_col,
@@ -167,7 +168,6 @@ if __name__ == "__main__":
                         + str(n_junctions) + f"conv_5_{k1}.txt",
                         champion_effs,
                     )
-
                     np.savetxt(
                         "results/champion_pop_"
                         + R_type
@@ -194,9 +194,6 @@ if __name__ == "__main__":
                         + "_"  + str(j01_method)
                         + str(n_junctions) + f"conv_5_{k1}.txt",
                     )
-
-                    champion_effs = np.delete(champion_effs, 4)
-
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
                         + R_type
@@ -205,16 +202,14 @@ if __name__ == "__main__":
                         + str(n_junctions) + f"conv_5_{k1}.txt",
                     )
 
-                    champion_pops = np.delete(champion_pops, 4, axis=0)
-
-                    # final_pop = np.load(
-                    #     "results/final_pop_"
-                    #     + R_type
-                    #     + str(n_peaks)
-                    #     + "_"  + str(j01_method)
-                    #     + str(n_junctions) + f"conv_5_{k1}.npy",
-                    #     allow_pickle=True
-                    # )[()]
+                    final_pop = np.load(
+                        "results/final_pop_"
+                        + R_type
+                        + str(n_peaks)
+                        + "_"  + str(j01_method)
+                        + str(n_junctions) + f"conv_5_{k1}.npy",
+                        allow_pickle=True
+                    )[()]
 
                     # champion_bandgaps = champion_pops[:, -n_junctions:]
                     #
@@ -224,7 +219,6 @@ if __name__ == "__main__":
                 Eg_array[i1, k1] = champion_pops[:, -n_junctions:]
 
                 eff_array[j1, i1, k1, :] = champion_effs
-
 
             #     plt.plot([champion_effs[2]] * n_junctions, champion_pops[2, -n_junctions:], 'x')
             #
@@ -339,4 +333,3 @@ if __name__ == "__main__":
     # plt.xlim(0, 0.004)
     # plt.show()
     #
-    print('std dev per junction # \n:', np.max(std_per_col_junc, axis=2)[:,0])

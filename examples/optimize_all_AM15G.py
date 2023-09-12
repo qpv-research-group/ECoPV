@@ -27,11 +27,10 @@ wl_cell = np.arange(
 )  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
 # spectrum. For calculations relating to colour perception, only the visible range (380-730 nm) will be used.
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
-# every color will run a minimum of initial_iters + add_iters evolutions before ending!
+iters_multiplier = 50  # 50 seems good. run iters_multiplier * n_params iterations per batch for each colour until convergence
+# conditions are met
 
-max_trials_col = 3 * add_iters
+max_trials_col = 500
 # how many population evolutions happen before giving up if there are no populations which meet the color threshold
 
 R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
@@ -137,7 +136,7 @@ if __name__ == "__main__":
                 + "_"
                 + str(base)
                 + "_"
-                + j01_method + light_source_name + ".txt"
+                + j01_method + light_source_name + "_2.txt"
             )
 
             if not path.exists(save_loc) or force_rerun:
@@ -160,9 +159,10 @@ if __name__ == "__main__":
                     R_type=R_type,
                     fixed_height=fixed_height,
                     n_trials=n_trials,
-                    initial_iters=initial_iters,
-                    add_iters=add_iters,
+                    iters_multiplier=iters_multiplier,
                     col_thresh=col_thresh,
+                    col_cutoff=0.05,
+                    # col_cutoff=1,
                     acceptable_eff_change=acceptable_eff_change,
                     max_trials_col=max_trials_col,
                     base=base,
@@ -170,9 +170,10 @@ if __name__ == "__main__":
                     Eg_black=Eg_guess,
                     plot=False,
                     power_in=light_source.power_density,
-                    return_archipelagos=False,
+                    return_archipelagos=True,
                     j01_method=j01_method,
                     illuminant=light_source_name,
+                    # DE_options={}
                 )
 
                 champion_effs = result["champion_eff"]
@@ -192,7 +193,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + light_source_name + ".txt",
+                    + "_" + j01_method + light_source_name + "_2.txt",
                     champion_effs,
                 )
                 np.savetxt(
@@ -206,7 +207,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_" + j01_method + light_source_name + ".txt",
+                    + "_" + j01_method + light_source_name + "_2.txt",
                     champion_pops,
                 )
                 # np.save(
@@ -237,7 +238,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + light_source_name + ".txt",
+                    + "_"  + j01_method + light_source_name + "_2.txt",
                 )
                 champion_pops = np.loadtxt(
                     "results/champion_pop_"
@@ -250,7 +251,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_"  + j01_method + light_source_name + ".txt",
+                    + "_"  + j01_method + light_source_name + "_2.txt",
                 )
                 champion_bandgaps = champion_pops[:, -n_junctions:]
 

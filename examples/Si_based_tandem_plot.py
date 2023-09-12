@@ -425,6 +425,8 @@ if __name__ == "__main__":
             markersize=7,
         )
 
+        print("Relative loss compared to black cell (%):", 100 * (np.max(eff_xr) - eff_xr) / np.max(eff_xr))
+
         chp = np.vstack(champion_pop_array[i1]).astype(float)
 
         pop_xr_col = xr.DataArray(

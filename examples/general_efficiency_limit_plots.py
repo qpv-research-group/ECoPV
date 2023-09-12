@@ -519,6 +519,9 @@ for j1, n_junctions in enumerate(n_junc_loop):
                 / black_cell_eff[n_junctions - 1]
         )
 
+        if n_junctions == 6:
+            print(eff_xr[10])
+
         if n_peaks == 2:
             ax1.plot(
                 eff_loss.color.data,

@@ -1,7 +1,8 @@
 # colours of interest:
 
+# Blue, Red, Magenta, Green, Neutral 8
 # Blue, Red, Green, OrangeYellow, Neutral 8
-inds = [12, 14, 13, 11, 19]
+inds = [12, 14, 13, 11, 20, 19]
 # inds = [20]
 # inds = [12]
 
@@ -27,7 +28,7 @@ rc("font", **{"family": "sans-serif",
 # sns.set_style("whitegrid")
 cols = sns.color_palette('husl', 2)
 
-force_rerun = False
+force_rerun = True
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
 
@@ -60,7 +61,7 @@ max_height = 1
 base = 0
 # baseline fixed reflection (fixed at this value for both fixed_height = True and False).
 
-n_junc_loop = [1, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
+n_junc_loop = [1]#, 2, 3, 4, 5, 6]  # loop through these numbers of junctions
 n_peak_loop = [2]  # loop through these numbers of reflection peaks
 
 linestyles = ['-', '--', '-.', ':']
@@ -70,7 +71,7 @@ color_names, color_XYZ = load_colorchecker(illuminant="AM1.5g", output_coords="X
 color_names = color_names[inds]
 color_XYZ = color_XYZ[inds]
 
-print(color_names)
+# print(color_names)
 # Use AM1.5G spectrum for cell calculations:
 light_source = LightSource(
     source_type="standard",
@@ -83,7 +84,7 @@ photon_flux_cell = np.array(light_source.spectrum(wl_cell))
 
 loop_n = 0
 
-n_tests = 20
+n_tests = 10
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
                     + R_type
                     + str(n_peaks)
                     + "_"  + str(j01_method)
-                    + str(n_junctions) + f"conv_5_{k1}.txt"
+                    + str(n_junctions) + f"conv_5_reinsertEg_{k1}.txt"
                 )
 
                 if not path.exists(save_loc) or force_rerun:
@@ -146,12 +147,13 @@ if __name__ == "__main__":
                         return_archipelagos=True,
                         j01_method=j01_method,
                         illuminant=light_source_name,
-                        DE_options={
+                        reinsert_optimal_Eg=0.04,
+                        # DE_options={
                              # 'realb': 0.75, # 0.5 does ok
                              #        'limit': 0, # 1 does ok
                         #             'neighbours': 100}#,
                                   #  'decomposition': 'bi'
-                        }
+                        # }
                     )
 
                     champion_effs = result["champion_eff"]
@@ -164,16 +166,15 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_5_{k1}.txt",
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.txt",
                         champion_effs,
                     )
-
                     np.savetxt(
                         "results/champion_pop_"
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_5_{k1}.txt",
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.txt",
                         champion_pops,
                     )
                     np.save(
@@ -181,7 +182,7 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_5_{k1}.npy",
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.npy",
                         final_pop,
                     )
 
@@ -192,29 +193,24 @@ if __name__ == "__main__":
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_5_{k1}.txt",
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.txt",
                     )
-
-                    champion_effs = np.delete(champion_effs, 4)
-
                     champion_pops = np.loadtxt(
                         "results/champion_pop_"
                         + R_type
                         + str(n_peaks)
                         + "_"  + str(j01_method)
-                        + str(n_junctions) + f"conv_5_{k1}.txt",
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.txt",
                     )
 
-                    champion_pops = np.delete(champion_pops, 4, axis=0)
-
-                    # final_pop = np.load(
-                    #     "results/final_pop_"
-                    #     + R_type
-                    #     + str(n_peaks)
-                    #     + "_"  + str(j01_method)
-                    #     + str(n_junctions) + f"conv_5_{k1}.npy",
-                    #     allow_pickle=True
-                    # )[()]
+                    final_pop = np.load(
+                        "results/final_pop_"
+                        + R_type
+                        + str(n_peaks)
+                        + "_"  + str(j01_method)
+                        + str(n_junctions) + f"conv_5_reinsertEg_{k1}.npy",
+                        allow_pickle=True
+                    )[()]
 
                     # champion_bandgaps = champion_pops[:, -n_junctions:]
                     #
@@ -224,7 +220,6 @@ if __name__ == "__main__":
                 Eg_array[i1, k1] = champion_pops[:, -n_junctions:]
 
                 eff_array[j1, i1, k1, :] = champion_effs
-
 
             #     plt.plot([champion_effs[2]] * n_junctions, champion_pops[2, -n_junctions:], 'x')
             #
@@ -339,4 +334,3 @@ if __name__ == "__main__":
     # plt.xlim(0, 0.004)
     # plt.show()
     #
-    print('std dev per junction # \n:', np.max(std_per_col_junc, axis=2)[:,0])
