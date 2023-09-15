@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from ecopv.optimization_functions import getIVmax, getPmax
 from ecopv.spectrum_functions import make_spectrum_ndip, gen_spectrum_ndip, load_cmf
 
@@ -168,7 +170,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
         + str(max_height)
         + "_"
         + str(base) + "_"  + j01_method + light_source_name
-        + ".txt"
+        + "_2.txt"
     )
 
     # Eg_xr = np.vstack(
@@ -350,7 +352,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + ".txt"
+            + "_2.txt"
         )
         champion_pops = np.loadtxt(
             "results/champion_pop_"
@@ -363,7 +365,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + ".txt"
+            + "_2.txt"
         )
         eff_xr = make_sorted_xr(champion_effs, color_names, ascending=True)
         c_xr = make_sorted_xr(champion_pops[:, :n_peaks], color_names,
@@ -493,7 +495,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + ".txt"
+            + "_2.txt"
         )
         champion_pops = np.loadtxt(
             "results/champion_pop_"
@@ -506,7 +508,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
             + str(max_height)
             + "_"
             + str(base) + "_"  + j01_method + light_source_name
-            + ".txt"
+            + "_2.txt"
         )
 
         append_black = black_cell_eff[n_junctions - 1]
@@ -582,7 +584,7 @@ ax1.set_title('(a)', loc='left')
 
 ax2.set_ylabel("Relative efficiency change (%)")
 ax2.set_title('(b)', loc='left')
-# ax2.set_ylim(-0.3, 2)
+ax2.set_ylim(-0.2, )
 
 ax_l.axis("off")
 ax_l2.axis("off")
@@ -623,7 +625,7 @@ for j1, n_junctions in enumerate(n_junc_loop):
         + str(max_height)
         + "_"
         + str(base) + "_"  + j01_method + light_source_name
-        + ".txt"
+        + "_2.txt"
     )
 
     # Eg_xr = np.vstack(
@@ -681,3 +683,170 @@ plt.subplots_adjust(hspace=0.1, wspace=0.15)
 # add_colour_patches(axs[4], patch_width, Eg_xr.color.data, color_XYZ_xr)
 # add_colour_patches(axs[5], patch_width, Eg_xr.color.data, color_XYZ_xr)
 plt.show()
+
+
+# load Neutral 3-5 results for 5 junctions, 2 or 3 peaks, to compare R spectrum.
+
+champion_effs_2peak = np.loadtxt('results/champion_eff_sharp2_5_True1_0_perfect_RAM1.5g_2.txt')[-2]
+
+champion_pops_2peak = np.loadtxt('results/champion_pop_sharp2_5_True1_0_perfect_RAM1.5g_2.txt')[-2]
+
+
+champion_effs_3peak = np.loadtxt('results/champion_eff_sharp3_5_True1_0_perfect_RAM1.5g_2.txt')[-2]
+
+champion_pops_3peak = np.loadtxt('results/champion_pop_sharp3_5_True1_0_perfect_RAM1.5g_2.txt')[-2]
+
+R_2 = gen_spectrum_ndip(champion_pops_2peak, 2, wl_cell)
+R_3 = gen_spectrum_ndip(champion_pops_3peak, 3, wl_cell)
+
+# bandgap in the middle of the reflectance peak is the same as bandgap at high-energy edge
+# of the reflectance peak, if the reflectance peak has height 1 and in the detailed-balance limit
+
+low_E_edge = 1240/(champion_pops_3peak[2] + champion_pops_3peak[5]/2)
+high_E_edge = 1240/(champion_pops_3peak[2] - champion_pops_3peak[5]/2)
+
+if champion_pops_3peak[-1] > low_E_edge and champion_pops_3peak[-1] < high_E_edge:
+    top_Eg_3peak = high_E_edge
+
+else:
+    top_Eg_3peak = champion_pops_3peak[-1]
+
+f, (ax, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(11, 4))
+ax.fill_between(wl_cell, R_2, 0, color='k', label='2 peak reflectance', alpha=0.3)
+ax.fill_between(wl_cell, R_3, 0, color='r', label='3 peak reflectance', alpha=0.3)
+ax2.fill_between(wl_cell, R_2, 0, color='k', label='2 peak reflectance', alpha=0.3)
+ax2.fill_between(wl_cell, R_3, 0, color='r', label='3 peak reflectance', alpha=0.3)
+ax2.axvline(1240/champion_pops_2peak[-1], color='k', linestyle='-', linewidth=2,
+            label=r'$E_{g, top}$ (2 $R$ peaks)')
+ax2.axvline(1240/top_Eg_3peak, color='r', linestyle='--', linewidth=2,
+            label=r'$E_{g, top}$ (3 $R$ peaks)')
+# plt.xlim(300, 800)
+ax.set_xlim(430, 465)
+ax2.set_xlim(535, 600)
+# hide the spines between ax and ax2
+ax.spines['right'].set_visible(False)
+ax2.spines['left'].set_visible(False)
+ax.yaxis.tick_left()
+# ax2.tick_params(labelright=False)
+ax2.yaxis.tick_right()
+d = .015  # how big to make the diagonal lines in axes coordinates
+# arguments to pass plot, just so we don't keep repeating them
+kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+ax.plot((1-d, 1+d), (-d, +d), **kwargs)
+ax.plot((1-d, 1+d), (1-d, 1+d), **kwargs)
+
+kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+ax2.plot((-d, +d), (1-d, 1+d), **kwargs)
+ax2.plot((-d, +d), (-d, +d), **kwargs)
+ax.set_ylabel('Reflectance')
+ax.set_xlabel('Wavelength (nm)')
+ax.xaxis.set_label_coords(1.15, -0.08)
+ax.set_ylim(0, 1.01)
+ax2.legend(loc=(-0.7,0.65))
+
+# what if we move bandgap to high-energy/low-bandgap edge of R peak?
+Eg_highest_2peak = 1240/(champion_pops_2peak[1] - champion_pops_2peak[3]/2)
+
+Eg_trial_2peak = champion_pops_2peak[-5:][::-1]
+# Eg_trial_2peak[0] = Eg_highest_2peak
+
+getIVmax(Eg_trial_2peak, photon_flux_cell[1]*(1-R_2), photon_flux_cell[0],
+        interval, champion_pops_2peak[:4], [1]*5, n_peaks=2)
+
+getIVmax(champion_pops_3peak[-5:][::-1], photon_flux_cell[1]*(1-R_3), photon_flux_cell[0],
+        interval, champion_pops_3peak[:6], [1]*5, n_peaks=3)
+
+# calculate "reflected current":
+from solcore.constants import q
+
+J2 = q*np.trapz(R_2*photon_flux_cell[1], wl_cell)/10
+J3 = q*np.trapz(R_3*photon_flux_cell[1], wl_cell)/10
+
+
+
+
+# load BlueFlower results for 6 junctions, 2 or 3 peaks, to compare R spectrum.
+
+champion_effs_2peak = np.loadtxt('results/champion_eff_sharp2_6_True1_0_perfect_RAM1.5g_2.txt')[4]
+
+champion_pops_2peak = np.loadtxt('results/champion_pop_sharp2_6_True1_0_perfect_RAM1.5g_2.txt')[4]
+
+
+champion_effs_3peak = np.loadtxt('results/champion_eff_sharp3_6_True1_0_perfect_RAM1.5g_2.txt')[4]
+
+champion_pops_3peak = np.loadtxt('results/champion_pop_sharp3_6_True1_0_perfect_RAM1.5g_2.txt')[4]
+
+R_2 = gen_spectrum_ndip(champion_pops_2peak, 2, wl_cell)
+R_3 = gen_spectrum_ndip(champion_pops_3peak, 3, wl_cell)
+
+# bandgap in the middle of the reflectance peak is the same as bandgap at high-energy edge
+# of the reflectance peak, if the reflectance peak has height 1 and in the detailed-balance limit
+
+low_E_edge = 1240/(champion_pops_3peak[2] + champion_pops_3peak[5]/2)
+high_E_edge = 1240/(champion_pops_3peak[2] - champion_pops_3peak[5]/2)
+
+if champion_pops_3peak[-1] > low_E_edge and champion_pops_3peak[-1] < high_E_edge:
+    top_Eg_3peak = high_E_edge
+
+else:
+    top_Eg_3peak = champion_pops_3peak[-1]
+
+
+ax3.fill_between(wl_cell, R_2, 0, color='k', label='2 peak reflectance', alpha=0.3)
+ax3.fill_between(wl_cell, R_3, 0, color='r', label='3 peak reflectance', alpha=0.3)
+ax4.fill_between(wl_cell, R_2, 0, color='k', label='2 peak reflectance', alpha=0.3)
+ax4.fill_between(wl_cell, R_3, 0, color='r', label='3 peak reflectance', alpha=0.3)
+ax4.axvline(1240/champion_pops_2peak[-1], color='k', linestyle='-', linewidth=2,
+            label=r'$E_{g, top}$ (2 $R$ peaks)')
+ax4.axvline(1240/top_Eg_3peak, color='r', linestyle='--', linewidth=2,
+            label=r'$E_{g, top}$ (3 $R$ peaks)')
+# plt.xlim(300, 800)
+ax3.set_xlim(430, 465)
+ax4.set_xlim(535, 600)
+# hide the spines between ax and ax2
+ax3.spines['right'].set_visible(False)
+ax4.spines['left'].set_visible(False)
+ax3.yaxis.tick_left()
+# ax4.tick_params(labelright=False)
+ax4.yaxis.tick_right()
+d = .015  # how big to make the diagonal lines in axes coordinates
+# arguments to pass plot, just so we don't keep repeating them
+kwargs = dict(transform=ax3.transAxes, color='k', clip_on=False)
+ax3.plot((1-d, 1+d), (-d, +d), **kwargs)
+ax3.plot((1-d, 1+d), (1-d, 1+d), **kwargs)
+
+kwargs.update(transform=ax4.transAxes)  # switch to the bottom axes
+ax4.plot((-d, +d), (1-d, 1+d), **kwargs)
+ax4.plot((-d, +d), (-d, +d), **kwargs)
+# ax3.set_ylabel('Reflectance')
+ax3.set_xlabel('Wavelength (nm)')
+ax3.xaxis.set_label_coords(1.15, -0.08)
+ax3.set_ylim(0, 1.01)
+
+
+ax.set_title('(a) Neutral 3-5, 5 junctions', loc='left')
+ax3.set_title('(b) Blue Flower, 6 junctions', loc='left')
+plt.show()
+
+
+# what if we move bandgap to high-energy/low-bandgap edge of R peak?
+Eg_highest_2peak = 1240/(champion_pops_2peak[1] - champion_pops_2peak[3]/2)
+
+Eg_trial_2peak = champion_pops_2peak[-5:][::-1]
+# Eg_trial_2peak[0] = Eg_highest_2peak
+
+getIVmax(Eg_trial_2peak, photon_flux_cell[1]*(1-R_2), photon_flux_cell[0],
+        interval, champion_pops_2peak[:4], [1]*5, n_peaks=2)
+
+getIVmax(champion_pops_3peak[-5:][::-1], photon_flux_cell[1]*(1-R_3), photon_flux_cell[0],
+        interval, champion_pops_3peak[:6], [1]*5, n_peaks=3)
+
+# calculate "reflected current":
+
+
+J2 = q*np.trapz(R_2*photon_flux_cell[1], wl_cell)/10
+J3 = q*np.trapz(R_3*photon_flux_cell[1], wl_cell)/10
+
+
+
+

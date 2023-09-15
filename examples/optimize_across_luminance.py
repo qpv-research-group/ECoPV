@@ -26,19 +26,15 @@ wl_cell = np.arange(
 
 n_peaks = 2
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
-# every color will run a minimum of initial_iters + add_iters evolutions before ending!
+iters_multiplier = 50
 
-max_trials_col = (
-    5 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
-# which meet the color threshold
+max_trials_col = 500
 
 R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
 fixed_height = True  # fixed height peaks (will be at the value of max_height) if True, or peak height is an optimization
 # variable if False
 light_source_name = "AM1.5g"
+j01_method = "perfect_R"
 
 max_height = (
     1  # maximum height of reflection peaks; fixed at this value of fixed_height = True
@@ -75,47 +71,10 @@ loop_n = 0
 # precalculate optimal bandgaps for junctions:
 save_path = path.join(path.dirname(path.abspath(__file__)), "results")
 
-# for n_junctions in n_junc_loop:
-#
-#     save_loc = save_path + "/champion_pop_{}juncs_{}spec.txt".format(
-#         n_junctions, light_source_name
-#     )
-#
-#     if not path.exists(save_loc) or force_rerun:
-#
-#         p_init = cell_optimization(
-#             n_junctions,
-#             photon_flux_cell,
-#             power_in=light_source.power_density,
-#             eta_ext=1,
-#         )
-#
-#         prob = pg.problem(p_init)
-#         algo = pg.algorithm(
-#             pg.de(
-#                 gen=1000,
-#                 F=1,
-#                 CR=1,
-#             )
-#         )
-#
-#         pop = pg.population(prob, 20 * n_junctions)
-#         pop = algo.evolve(pop)
-#
-#         champion_pop = np.sort(pop.champion_x)
-#
-#         np.savetxt(
-#             save_path
-#             + "/champion_pop_{}juncs_{}spec.txt".format(n_junctions, light_source_name),
-#             champion_pop,
-#         )
-
-
 champion_effs_array = np.zeros((len(n_junc_loop), len(Y_values), len(color_xyY)))
 champion_pops_array = np.empty(
     (len(n_junc_loop), len(Y_values), len(color_xyY)), dtype=object
 )
-
 
 if __name__ == "__main__":
     # Need this __main__ construction because otherwise the parallel running of the different islands (n_trials) may throw an error
@@ -140,7 +99,7 @@ if __name__ == "__main__":
                     + str(max_height)
                     + "_"
                     + str(base)
-                    + "_spd.txt"
+                    + ".txt"
                 )
 
                 if not path.exists(save_loc) or force_rerun:
@@ -171,6 +130,7 @@ if __name__ == "__main__":
                     print("still possible: ", color_names)
 
                     print(n_junctions, "junctions,", "fixed height:", fixed_height)
+
                     result = multiple_color_cells(
                         color_XYZ,
                         color_names,
@@ -180,9 +140,9 @@ if __name__ == "__main__":
                         R_type=R_type,
                         fixed_height=fixed_height,
                         n_trials=n_trials,
-                        initial_iters=initial_iters,
-                        add_iters=add_iters,
+                        iters_multiplier=iters_multiplier,
                         col_thresh=col_thresh,
+                        col_cutoff=0.05,
                         acceptable_eff_change=acceptable_eff_change,
                         max_trials_col=max_trials_col,
                         base=base,
@@ -190,6 +150,11 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         plot=False,
                         power_in=light_source.power_density,
+                        return_archipelagos=False,
+                        j01_method=j01_method,
+                        illuminant=light_source_name,
+                        # DE_options={},
+                        n_reset=2,
                     )
 
                     champion_effs = result["champion_eff"]
@@ -215,7 +180,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_spd.txt",
+                        + ".txt",
                         champion_effs,
                     )
                     np.savetxt(
@@ -231,7 +196,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_spd.txt",
+                        + ".txt",
                         champion_pops,
                     )
 
@@ -250,7 +215,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_spd.txt")
+                        + ".txt")
 
                     champion_pops = np.loadtxt("results/champion_pop_Y_"
                         + color_suff[j1]
@@ -264,7 +229,7 @@ if __name__ == "__main__":
                         + str(max_height)
                         + "_"
                         + str(base)
-                        + "_spd.txt")
+                        + ".txt")
 
                     champion_effs_array[i1, j1, poss_colors] = champion_effs
 
@@ -274,15 +239,15 @@ if __name__ == "__main__":
                     poss_colors = np.delete(poss_colors, np.where(champion_effs == 0))
 
 
-        np.save("results/champion_effs_array_spd.npy", champion_effs_array)
-        np.save("results/champion_pops_array_spd.npy", champion_pops_array)
+        np.save("results/champion_effs_array.npy", champion_effs_array)
+        np.save("results/champion_pops_array.npy", champion_pops_array)
 
     else:
         champion_effs_array = np.load(
-            "results/champion_effs_array_spd.npy", allow_pickle=True
+            "results/champion_effs_array.npy", allow_pickle=True
         )
         champion_pops_array = np.load(
-            "results/champion_pops_array_spd.npy", allow_pickle=True
+            "results/champion_pops_array.npy", allow_pickle=True
         )
 
     zs = champion_effs_array == 0

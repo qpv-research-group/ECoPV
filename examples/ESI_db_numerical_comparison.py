@@ -55,7 +55,7 @@ for Egs in black_cell_Eg:
         photon_flux_cell[0],
         interval,
         None,
-        1,
+        [1]*len(Egs),
         4.43,
         "no_R",
         2)/10
@@ -63,7 +63,8 @@ for Egs in black_cell_Eg:
     j01s, jscs, Vmaxs, Imaxs = db_cell_calculation_noR(Egs[::-1],
                                                        photon_flux_cell[1],
                                                        photon_flux_cell[0],
-                                                       interval
+                                                       interval,
+                                                       rad_eff=[1]*len(Egs),
                                                        )
 
     minImax = np.amin(Imaxs)

@@ -76,13 +76,10 @@ wl_cell = np.arange(
 
 n_peaks = 2
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
+iters_multiplier = 50  # additional evolutions added each time if color threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
-max_trials_col = (
-    50 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
+max_trials_col = 750  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
 R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
@@ -188,21 +185,22 @@ if __name__ == "__main__":
                             R_type=R_type,
                             fixed_height=fixed_height,
                             n_trials=n_trials,
-                            initial_iters=initial_iters,
-                            add_iters=add_iters,
+                            iters_multiplier=iters_multiplier,
                             col_thresh=col_thresh,
+                            col_cutoff=0.05,
                             acceptable_eff_change=acceptable_eff_change,
                             max_trials_col=max_trials_col,
                             base=base,
                             max_height=max_height,
+                            Eg_black=np.array([1.74]),
                             fixed_bandgaps=fixed_bandgaps,
                             plot=False,
-                            j01_method = j01_method,
-                            minimum_eff = minimum_eff,
-                            illuminant=light_source_name,
+                            power_in=light_source.power_density,
+                            return_archipelagos=True,
+                            j01_method=j01_method,
                             seed_population=np.array([seed_pop]),
-                            rad_eff=[0.1, 0.016]
-
+                            rad_eff=[0.1, 0.016],
+                            n_reset=2,
                         )
 
                         champion_effs = result["champion_eff"]

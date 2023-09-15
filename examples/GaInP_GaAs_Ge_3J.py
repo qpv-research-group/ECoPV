@@ -151,7 +151,8 @@ if __name__ == "__main__":
                         Eg_black=Eg_guess,
                         fixed_bandgaps=fixed_bandgaps,
                         plot=False,
-                        return_archipelagos=False
+                        return_archipelagos=False,
+                        n_reset=2,
                     )
 
                     champion_effs = result["champion_eff"]

@@ -209,6 +209,7 @@ if __name__ == "__main__":
                         power_in=light_source.power_density,
                         j01_method=j01_method,
                         rad_eff=rad_eff_int,
+                        n_reset=2,
                     )
 
                     champion_effs = result["champion_eff"]

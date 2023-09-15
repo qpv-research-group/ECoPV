@@ -15,7 +15,8 @@ from solcore.constants import h, c
 
 rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
-# Use smaller population size than actual results for clarity!
+col_cutoff = 0.05
+
 
 def plot_non_dominated_fronts(points, marker='o', comp=[0, 1], axes=None,
                               color=None, linecolor='k', mfc=None,
@@ -80,7 +81,7 @@ n_trials = 1  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(280, 4000, interval)  # wavelengths
 
-add_iters = 200 # additional evolutions added each time if color
+add_iters = 500 # additional evolutions added each time if color
 # threshold/convergence condition not met
 # every color will run a minimum of initial_iters + add_iters evolutions before ending!
 
@@ -90,13 +91,16 @@ fixed_height = True  # fixed height peaks (will be at the value of max_height) o
 max_height = 1  # maximum height of reflection peaks
 base = 0  # baseline fixed reflection
 
-n_junctions = 1  # number of junctions in the cell
+n_junctions = 6  # number of junctions in the cell
 
 n_peaks = 2  # number of reflection peaks
 
 color_names, color_XYZ = load_colorchecker()  # load the 24 default ColorChecker colors
-color_names = [color_names[1]]#, color_names[14]]
-color_XYZ = [color_XYZ[1]]#, color_XYZ[14]]
+color_names = [color_names[2]]#, color_names[14]]
+color_XYZ = [color_XYZ[2]]#, color_XYZ[14]]
+
+# BlueSky maximum efficiency:
+found_max = 55.53376
 
 # Define the incident photon flux. This should be a 2D array with the first row being the wavelengths and the second row
 # being the photon flux at each wavelength. The wavelengths should be in nm and the photon flux in photons/m^2/s/nm.
@@ -143,7 +147,7 @@ if __name__ == "__main__":
         n_peaks=n_peaks, R_type=R_type, fixed_height=fixed_height
     )
     n_params = placeholder_obj.n_spectrum_params + n_junctions
-    # pop_size = n_params * 10
+    pop_size = n_params * 10
 
     Eg_black = np.loadtxt(
         save_path
@@ -153,10 +157,10 @@ if __name__ == "__main__":
         ndmin=1,
     )
 
-    x_vals_start = np.loadtxt("results/pareto_plot_pop.txt")
+    # x_vals_start = np.loadtxt("results/pareto_plot_pop.txt")
 
 
-    RGB_finalpop = np.zeros((len(x_vals_start), 3))
+    RGB_finalpop = np.zeros((pop_size, 3))
 
     for j1, target_col in enumerate(color_XYZ):
 
@@ -175,6 +179,7 @@ if __name__ == "__main__":
             n_peaks,
             n_junctions,
             target_col,
+            col_cutoff,
             photon_flux_cell,
             illuminant,
             spectrum_obj.spectrum_function,
@@ -187,14 +192,14 @@ if __name__ == "__main__":
 
         algo = pg.algorithm(pg.moead(gen=1, CR=1, F=0.5, preserve_diversity=True))
 
-        archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=len(x_vals_start))
+        archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=pop_size)
 
         # for i1 in range(len(x_vals_start)):
         #     pop = archi[0].get_population()
         #     pop.set_x(i1, x_vals_start[i1])
         #     archi[0].set_population(pop)
 
-        RGB_initpop = np.zeros((len(x_vals_start), 3))
+        RGB_initpop = np.zeros((pop_size, 3))
 
         for i1, xs in enumerate(archi[0].get_population().get_x()):
             spec = placeholder_obj.spectrum_function(xs, n_peaks=n_peaks, wl=wl_col)
@@ -204,7 +209,7 @@ if __name__ == "__main__":
 
         RGB_initpop[RGB_initpop > 1] = 1
 
-        fig, (ax, ax3) = plt.subplots(1, 2, figsize=(10, 4))
+        fig, (ax, ax3) = plt.subplots(1, 2, figsize=(10, 3))
 
         if j1 == 0:
             f_vals_start = archi[0].get_population().get_f()
@@ -219,13 +224,15 @@ if __name__ == "__main__":
 
         for i1 in range(1, add_iters):
             print(i1)
+
             archi = internal_run.run(
-                target_col,
-                photon_flux_cell,
-                illuminant,
-                n_peaks,
-                n_junctions,
-                len(x_vals_start),
+                target=target_col,
+                col_cutoff=col_cutoff,
+                photon_flux=photon_flux_cell,
+                illuminant=illuminant,
+                n_peaks=n_peaks,
+                n_gaps=n_junctions,
+                popsize=pop_size,
                 gen=1,
                 n_trials=n_trials,
                 power_in=light_source.power_density,
@@ -282,39 +289,40 @@ if __name__ == "__main__":
         ax.set_ylabel("Cell efficiency (%)")
 
         left, bottom, width, height = [0.13, 0.8, 0.15, 0.15]
-        ax2 = fig.add_axes([left, bottom, width, height])
+        # ax2 = fig.add_axes([left, bottom, width, height])
+        #
+        # ax2.set_facecolor((0.7, 0.7, 0.7))
 
-        ax2.set_facecolor((0.7, 0.7, 0.7))
+        # f_vals_thresh = f_vals[f_vals[:, 0] < 0.051]
+        # RGB_finalpop_thresh = RGB_finalpop[f_vals[:, 0] < 0.051]
+        #
+        # plot_non_dominated_fronts(f_vals_thresh, axes=ax2, color=RGB_finalpop_thresh,
+        #                           mfc=RGB_finalpop_thresh,
+        #                           linecolor=RGB_finalpop_thresh[-1])
 
-        f_vals_thresh = f_vals[f_vals[:, 0] < 0.051]
-        RGB_finalpop_thresh = RGB_finalpop[f_vals[:, 0] < 0.051]
-
-        plot_non_dominated_fronts(f_vals_thresh, axes=ax2, color=RGB_finalpop_thresh,
-                                  mfc=RGB_finalpop_thresh,
-                                  linecolor=RGB_finalpop_thresh[-1])
-
-        for label in (ax2.get_xticklabels() + ax2.get_yticklabels()):
-            label.set_fontsize(8)
+        # for label in (ax2.get_xticklabels() + ax2.get_yticklabels()):
+        #     label.set_fontsize(8)
 
         ax.grid(axis="both")
-        ax2.grid(axis="both")
+        # ax2.grid(axis="both")
         ax3.grid(axis="both")
         # ax.set_xlim(0, np.max(f_vals_start[:, 0] + 0.01))
-        ax.set_xlim(0, 1.02)
+        # ax.set_xlim(0, 1.02)
         # ax.set_ylim(-100*(np.max(f_vals_start[:, 1]) + 0.01), 34.3)
-        ax.set_ylim(16, 34.3)
-        ax3.set_ylim(16, 34.3)
-        ax2.set_xlim(-0.001, 0.01)
-        ax2.set_ylim(29, 31)
-        ax2.axvline(0.004, linestyle='--', color='k', alpha=0.6)
+        # ax.set_ylim(16, 34.3)
+        # ax3.set_ylim(16, 34.3)
+        # ax2.set_xlim(-0.001, 0.01)
+        # ax2.set_ylim(29, 31)
+        # ax2.axvline(0.004, linestyle='--', color='k', alpha=0.6)
         ax.set_facecolor((0.98, 0.97, 0.95))
 
         best_eff[best_eff == 0] = np.nan
 
-        ax3.plot(best_eff, color='k', linewidth=1.5, label="Best white cell")
-        ax3.plot(best_overall_eff, 'k--', alpha=0.5, linewidth=1.5, label="Best overall cell")
+        ax3.plot(best_eff, color=RGB_finalpop[0], linewidth=1.5, label=f"Best {color_names[0]} cell")
+        # ax3.plot(best_overall_eff, 'k--', alpha=0.5, linewidth=1.5, label="Best overall cell")
+        ax3.axhline(found_max, linestyle='--', color='k', alpha=0.7)
         ax3.legend()
-        ax3.set_xlabel("Iteration")
+        ax3.set_xlabel("Generation")
         ax3.set_ylabel("Efficiency (%)")
         ax3.set_xlim(0, add_iters-1)
 

@@ -2,10 +2,6 @@
 
 # Blue, Red, Green, OrangeYellow, Neutral 8
 inds = [12, 14, 13, 11, 19]
-# inds = [20]
-# inds = [12]
-
-# tried with resetting 1/5 and 1/2 of islands
 
 from ecopv.main_optimization import (
     load_colorchecker,
@@ -21,8 +17,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import rc
 
-rc("font", **{"family": "sans-serif",
-              "sans-serif": ["Helvetica"]})
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
 # sns.set_style("whitegrid")
 cols = sns.color_palette('husl', 2)
@@ -151,7 +146,8 @@ if __name__ == "__main__":
                              #        'limit': 0, # 1 does ok
                         #             'neighbours': 100}#,
                                   #  'decomposition': 'bi'
-                        }
+                        },
+                        n_reset=2,
                     )
 
                     champion_effs = result["champion_eff"]

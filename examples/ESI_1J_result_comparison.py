@@ -13,7 +13,6 @@ from matplotlib import rc
 
 rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
-
 force_rerun = False
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
@@ -109,8 +108,7 @@ if __name__ == "__main__":
         R_type=R_type,
         fixed_height=fixed_height,
         n_trials=n_trials,
-        initial_iters=initial_iters,
-        add_iters=add_iters,
+        iters_multiplier=50,
         col_thresh=col_thresh,
         acceptable_eff_change=acceptable_eff_change,
         max_trials_col=max_trials_col,
@@ -122,6 +120,7 @@ if __name__ == "__main__":
         return_archipelagos=False,
         j01_method=j01_method,
         illuminant=light_source_name,
+        n_reset=2,
         )
 
         champion_effs = result["champion_eff"]
@@ -205,6 +204,7 @@ if __name__ == "__main__":
     ax2.set_xticklabels(labels=color_names, rotation=45,ha='right')
     ax2.legend()
     ax2.set_ylabel("Bandgap (eV)")
-
+    ax1.grid('both', alpha=0.3)
+    ax2.grid('both', alpha=0.3)
     plt.tight_layout()
     plt.show()

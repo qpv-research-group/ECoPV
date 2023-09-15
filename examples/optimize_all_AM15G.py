@@ -8,7 +8,6 @@ from solcore.light_source import LightSource
 import matplotlib.pyplot as plt
 import pygmo as pg
 from os import path
-import pandas as pd
 
 force_rerun = False # if True, will not load previous results but re-run and replace existing results
 force_rerun_ideal = False # if True, will re-calculate black cell optimal bandgaps (used to determine bounds for
@@ -162,7 +161,6 @@ if __name__ == "__main__":
                     iters_multiplier=iters_multiplier,
                     col_thresh=col_thresh,
                     col_cutoff=0.05,
-                    # col_cutoff=1,
                     acceptable_eff_change=acceptable_eff_change,
                     max_trials_col=max_trials_col,
                     base=base,
@@ -170,10 +168,11 @@ if __name__ == "__main__":
                     Eg_black=Eg_guess,
                     plot=False,
                     power_in=light_source.power_density,
-                    return_archipelagos=True,
+                    return_archipelagos=False,
                     j01_method=j01_method,
                     illuminant=light_source_name,
-                    # DE_options={}
+                    # DE_options={},
+                    n_reset=2,
                 )
 
                 champion_effs = result["champion_eff"]

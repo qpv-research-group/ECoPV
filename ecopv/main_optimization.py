@@ -212,8 +212,8 @@ def multiple_color_cells(
     minimum_eff: Sequence[float] = None,
     seed_population: np.ndarray = None,
     illuminant: str = "AM1.5g",
-    reinsert_optimal_Eg: float = 0,
     DE_options: dict = None,
+    n_reset=0,
     **kwargs,
 ) -> dict:
 
@@ -262,6 +262,7 @@ def multiple_color_cells(
         density at each wavelength.
     :param DE_options: dictionary of options to pass to the pygmo2 differential evolution. See pygmo2
         documentation for details.
+    :param n_reset: worst n_reset populations will be reset at the start of each batch (except before the very first batch)
     :param kwargs: additional arguments to pass to color_function_mobj (including rad_eff)
 
     :return: results from the optimization in a dictionary with elements "champion_eff" (maximum cell efficiencies for
@@ -400,7 +401,6 @@ def multiple_color_cells(
                 j01_method=j01_method,
                 seed_pop=seed_population[k1],
                 DE_options=DE_options,
-                reinsert_optimal_Eg=reinsert_optimal_Eg,
                 to_reset=to_reset[k1],
                 **kwargs,
             )
@@ -437,8 +437,7 @@ def multiple_color_cells(
             )
 
             low_to_high = np.argsort(best_acc_eff)
-            to_reset[k1] = low_to_high[:(n_trials // 5)]
-            # reset worst 1/5 of populations
+            to_reset[k1] = low_to_high[:n_reset]
 
             # save best efficiency and population on each iteration
             # with open(f"{color_names[k1]}_order.txt", "a") as myfile:
@@ -568,14 +567,6 @@ def multiple_color_cells(
                     # )
                     conv[k1] = True
 
-                    spec = internal_run.spec_func(
-                        champion_pop[k1],
-                        n_peaks,
-                        wl_visible,
-                        base=base,
-                        max_height=max_height,
-                    )
-
                     color_XYZ_found[k1] = XYZ_from_pop_dips(champion_pop[k1], n_peaks,
                                                             photon_flux, interval)
 
@@ -617,10 +608,10 @@ def multiple_color_cells(
         [reorder_peaks(x, n_peaks, n_junctions, fixed_height) for x in champion_pop]
     )
 
-    color_Lab_found = [convert_XYZ_to_Lab(x) for x in color_XYZ_found]
-    color_Lab_target = [convert_XYZ_to_Lab(x) for x in color_XYZ]
+    # color_Lab_found = [convert_XYZ_to_Lab(x) for x in color_XYZ_found]
+    # color_Lab_target = [convert_XYZ_to_Lab(x) for x in color_XYZ]
 
-    delta_E = [delta_E_CIE2000(x, y) for x, y in zip(color_Lab_found, color_Lab_target)]
+    # delta_E = [delta_E_CIE2000(x, y) for x, y in zip(color_Lab_found, color_Lab_target)]
     # print("Delta E*:", delta_E, np.max(delta_E))
 
     results = {
@@ -679,7 +670,6 @@ class single_color_cell:
         j01_method="perfect_R",
         seed_pop=None,
         DE_options=None,
-        reinsert_optimal_Eg=0,
         to_reset=None,
         **kwargs
     ):
@@ -710,7 +700,7 @@ class single_color_cell:
         if archi is None:
             udp = pg.problem(p_init)
             algo = pg.algorithm(pg.moead(gen=gen, CR=CR, F=F, preserve_diversity=preserve_diversity, **DE_options))
-            archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)#, t=pg.fully_connected())
+            archi = pg.archipelago(n=n_trials, algo=algo, prob=udp, pop_size=popsize)
 
             if seed_pop is not None:
 
@@ -725,35 +715,6 @@ class single_color_cell:
 
                     isl.set_population(population)
 
-        if reinsert_optimal_Eg:
-            # re-set bandgaps to black cell optimal Eg while keeping colour peaks the same
-            # for some members of the population
-
-            for isl in archi:
-
-                population = isl.get_population()
-
-                reset = np.random.randint(0, popsize, size=int(popsize*reinsert_optimal_Eg))
-
-                # # best_col_ind = np.argmin(isl.get_population().get_f()[:, 0])
-                # best_col_ind = np.where(isl.get_population().get_f()[:, 0] > 0.004)[0][-1]
-                # # print('Current best', population.get_f()[best_col_ind -1])
-                # current_x = population.get_x()[best_col_ind]
-                # current_x[-n_gaps:] = Eg_black
-                #
-                # population.set_x(best_col_ind, current_x)
-                #
-                # print(population.get_f()[best_col_ind])
-                # print(population.get_x()[best_col_ind])
-
-                for i in reset:
-                    current_x = population.get_x()[i]
-                    current_x[-n_gaps:] = Eg_black
-
-                    population.set_x(i, current_x)
-
-                isl.set_population(population)
-
         if to_reset is not None:
             udp = pg.problem(p_init)
             for isl_ind in to_reset:
@@ -761,9 +722,6 @@ class single_color_cell:
                 archi[isl_ind].set_population(pg.population(prob=udp, size=popsize))
 
         archi.evolve()
-
-        # print(archi.get_migration_log())
-
         archi.wait()
 
         return archi

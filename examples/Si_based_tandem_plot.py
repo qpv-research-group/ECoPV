@@ -18,28 +18,24 @@ from matplotlib import rc
 
 rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 
-force_rerun = False
+force_rerun = True
 
 col_thresh = 0.004  # for a wavelength interval of 0.1, minimum achievable color error will be (very rough estimate!) ~ 0.001.
 # This is the maximum allowed fractional error in X, Y, or Z colour coordinates.
 
-acceptable_eff_change = 1e-4  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
+acceptable_eff_change = 1e-5  # how much can the efficiency (in %) change between iteration sets? Stop when have reached
 # col_thresh and efficiency change is less than this.
 
-n_trials = 8  # number of islands which will run concurrently
+n_trials = 10  # number of islands which will run concurrently
 interval = 0.1  # wavelength interval (in nm)
 wl_cell = np.arange(
     300, 4000, interval
 )  # wavelengths used for cell calculations (range of wavelengths in AM1.5G solar
 # spectrum. For calculations relating to colour perception, only the visible range (380-780 nm) will be used.
 
-initial_iters = 100  # number of initial evolutions for the archipelago
-add_iters = 100  # additional evolutions added each time if color threshold/convergence condition not met
-# every color will run a minimum of initial_iters + add_iters evolutions before ending!
+iters_multiplier = 50
 
-max_trials_col = (
-    6 * add_iters
-)  # how many population evolutions happen before giving up if there are no populations
+max_trials_col = 500  # how many population evolutions happen before giving up if there are no populations
 # which meet the color threshold
 
 R_type = "sharp"  # "sharp" for rectangular dips or "gauss" for gaussians
@@ -197,9 +193,9 @@ if __name__ == "__main__":
                         R_type=R_type,
                         fixed_height=fixed_height,
                         n_trials=n_trials,
-                        initial_iters=initial_iters,
-                        add_iters=add_iters,
+                        iters_multiplier=iters_multiplier,
                         col_thresh=col_thresh,
+                        col_cutoff=0.05,
                         acceptable_eff_change=acceptable_eff_change,
                         max_trials_col=max_trials_col,
                         base=base,
@@ -211,6 +207,7 @@ if __name__ == "__main__":
                         return_archipelagos=True,
                         j01_method=j01_method,
                         rad_eff=rad_eff_int,
+                        n_reset=2,
                     )
 
                     champion_effs = result["champion_eff"]
